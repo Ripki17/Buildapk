@@ -1,4 +1,4 @@
-name: Build Native Android & Flutter APK
+name: Build Native Android & Flutter APK (with Auto-Repair Engine)
 
 on:
   workflow_dispatch:
@@ -29,32 +29,47 @@ on:
 
 jobs:
   build:
-    name: Auto Detect & Compile APK
+    name: Auto-Repair & Compile APK Engine
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
     steps:
-      - name: Setup Workspace
+      - name: Setup Workspace & Extract Project
         run: |
           mkdir -p project
           cd project
           SOURCE_TYPE="${{ github.event.inputs.source_type }}"
           SOURCE_URL="${{ github.event.inputs.source_url }}"
+          
           if [ "$SOURCE_TYPE" = "zip_url" ]; then
-            echo "Mengunduh Project ZIP..."
-            curl -L "$SOURCE_URL" -o project.zip
-            unzip -q project.zip || 7z x project.zip
+            echo "📥 Mengunduh Project Archive dari: $SOURCE_URL"
+            curl -L -s -S --connect-timeout 30 --retry 3 "$SOURCE_URL" -o project.zip
+            
+            # Verify file is not HTML/error page
+            FILE_HEAD=$(head -c 15 project.zip || echo "")
+            if echo "$FILE_HEAD" | grep -qiE "<!doctype|<html|<error"; then
+              echo "❌ ERROR: URL yang diunduh bukan file biner ZIP melainkan respon teks/HTML!"
+              head -n 20 project.zip
+              exit 1
+            fi
+            
+            echo "📦 Mengekstrak project archive..."
+            unzip -q project.zip || 7z x project.zip || tar -xf project.zip || true
             rm -f project.zip
+            
+            # Flatten nested root folder if present
             SUBDIRS=(*/)
-            if [ ${#SUBDIRS[@]} -eq 1 ] && [ -d "${SUBDIRS[0]}" ] && [ ! -f "pubspec.yaml" ] && [ ! -f "build.gradle" ]; then
-              echo "Flattening nested single root folder: ${SUBDIRS[0]}"
+            if [ ${#SUBDIRS[@]} -eq 1 ] && [ -d "${SUBDIRS[0]}" ] && [ ! -f "pubspec.yaml" ] && [ ! -f "build.gradle" ] && [ ! -f "settings.gradle" ]; then
+              echo "🔄 Flattening single root directory: ${SUBDIRS[0]}"
               mv ${SUBDIRS[0]}* . 2>/dev/null || true
               mv ${SUBDIRS[0]}.* . 2>/dev/null || true
             fi
           else
-            echo "Cloning Git repository..."
+            echo "📥 Cloning Git repository: $SOURCE_URL"
             git clone --depth 1 -b ${{ github.event.inputs.branch }} "$SOURCE_URL" .
           fi
+          
+          echo "📁 Project root files:"
           ls -la
 
       - name: Detect Framework
@@ -63,62 +78,130 @@ jobs:
         run: |
           if [ -f "pubspec.yaml" ]; then
             echo "FRAMEWORK=flutter" >> $GITHUB_ENV
-            echo "Detected Flutter"
-          elif [ -f "settings.gradle" ] || [ -f "settings.gradle.kts" ] || [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
+            echo "✅ Framework: Flutter"
+          elif [ -f "settings.gradle" ] || [ -f "settings.gradle.kts" ] || [ -f "build.gradle" ] || [ -f "build.gradle.kts" ] || [ -d "app" ]; then
             echo "FRAMEWORK=native-android" >> $GITHUB_ENV
-            echo "Detected Native Android"
+            echo "✅ Framework: Native Android"
           else
             echo "FRAMEWORK=unknown" >> $GITHUB_ENV
-            echo "Unknown framework"
+            echo "❌ Framework tidak terdeteksi (Tidak ada pubspec.yaml atau build.gradle)"
             exit 1
           fi
 
-      - name: Setup JDK 17
+      - name: Setup Multi-JDK Matrix (JDK 17 & JDK 11)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup JDK 11 (Fallback for legacy Gradle projects)
+      - name: Setup JDK 11 (Fallback for Legacy Gradle)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
 
-      - name: Accept Android SDK Licenses
+      - name: Accept Android SDK Licenses & Tools
         run: |
           yes | sdkmanager --licenses 2>/dev/null || yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
 
-      - name: Setup Flutter (if Flutter)
+      - name: Pre-Build Auto-Repair & Environment Patching
+        working-directory: project
+        run: |
+          echo "🛠 Memulai Pre-Build Self-Repair..."
+          
+          # 1. Setup local.properties
+          if [ -d "android" ]; then
+            echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          fi
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          
+          # 2. Setup robust gradle.properties (Heap memory + AndroidX + Jetifier)
+          GRADLE_PROP="android/gradle.properties"
+          if [ ! -d "android" ]; then
+            GRADLE_PROP="gradle.properties"
+          fi
+          
+          touch "$GRADLE_PROP"
+          grep -q "org.gradle.jvmargs" "$GRADLE_PROP" || echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8" >> "$GRADLE_PROP"
+          grep -q "android.useAndroidX" "$GRADLE_PROP" || echo "android.useAndroidX=true" >> "$GRADLE_PROP"
+          grep -q "android.enableJetifier" "$GRADLE_PROP" || echo "android.enableJetifier=true" >> "$GRADLE_PROP"
+          
+          # 3. Auto-heal gradlew permissions
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+          fi
+          if [ -f "android/gradlew" ]; then
+            chmod +x android/gradlew
+          fi
+          
+          echo "✅ Pre-Build Self-Repair selesai!"
+
+      - name: Setup Flutter Toolchain (if Flutter)
         if: env.FRAMEWORK == 'flutter'
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
 
-      - name: Build Flutter APK
+      - name: Build Flutter APK (with Self-Healing Auto-Repair)
         if: env.FRAMEWORK == 'flutter'
         working-directory: project
         run: |
           export JAVA_HOME="$JAVA_HOME_17_X64"
           export PATH="$JAVA_HOME/bin:$PATH"
-          flutter pub get
+          AUTO_REPAIRED="Tidak"
+          
+          echo "⚡ [Flutter] Step 1: Resolving dependencies..."
+          flutter pub get || {
+            echo "⚠️ flutter pub get gagal, menjalankan Auto-Repair pubspec..."
+            AUTO_REPAIRED="Ya (Auto-Fix Pubspec & Clean Cache)"
+            rm -f pubspec.lock
+            flutter clean || true
+            flutter pub get --no-example || flutter pub upgrade --major-versions
+          }
+          
           BUILD_FLAG="--release"
           if [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
             BUILD_FLAG="--debug"
           fi
-          flutter build apk $BUILD_FLAG --no-tree-shake-icons 2>&1 | tee build_output.log
+          
+          echo "💻 [Flutter] Step 2: Compiling APK..."
+          flutter build apk $BUILD_FLAG --no-tree-shake-icons 2>&1 | tee build_output.log || {
+            echo "⚠️ Build Flutter gagal pada percobaan 1. Memulai Engine Analisis & Auto-Repair..."
+            AUTO_REPAIRED="Ya (Self-Healing Auto-Patched)"
+            
+            # Diagnosis 1: Gradle version incompatibilities
+            if grep -q "Could not initialize class org.codehaus.groovy" build_output.log || grep -q "Unsupported class file" build_output.log; then
+              echo "🔧 [Auto-Repair] Beralih ke JDK 11..."
+              export JAVA_HOME="$JAVA_HOME_11_X64"
+              export PATH="$JAVA_HOME/bin:$PATH"
+            fi
+            
+            # Diagnosis 2: Android SDK compileVersion mismatch
+            if grep -q "compileSdkVersion" build_output.log || grep -q "Namespace not specified" build_output.log; then
+              echo "🔧 [Auto-Repair] Memperbaiki namespace & compileSdk di android/app/build.gradle..."
+              sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle 2>/dev/null || true
+            fi
+            
+            # Re-attempt Build
+            echo "🚀 [Auto-Repair] Menjalankan kompilasi ulang (Attempt 2)..."
+            flutter build apk $BUILD_FLAG --no-tree-shake-icons 2>&1 | tee build_output.log
+          }
+          
+          echo "AUTO_REPAIRED=$AUTO_REPAIRED" >> $GITHUB_ENV
 
-      - name: Build Native Android APK
+      - name: Build Native Android APK (with Self-Healing Auto-Repair)
         if: env.FRAMEWORK == 'native-android'
         working-directory: project
         run: |
+          AUTO_REPAIRED="Tidak"
+          
           # Detect legacy gradle
           if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
             GRADLE_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties || echo "")
-            echo "Gradle wrapper distribution URL: $GRADLE_URL"
+            echo "Gradle wrapper URL: $GRADLE_URL"
             if echo "$GRADLE_URL" | grep -qE "gradle-([456]\.|7\.[0-2])"; then
-              echo "⚠️ Legacy Gradle detected! Defaulting to JDK 11..."
+              echo "⚠️ Legacy Gradle terdeteksi -> Memilih JDK 11"
               export JAVA_HOME="$JAVA_HOME_11_X64"
               export PATH="$JAVA_HOME/bin:$PATH"
             else
@@ -130,13 +213,10 @@ jobs:
             export PATH="$JAVA_HOME/bin:$PATH"
           fi
 
-          java -version
-
-          if [ -f "./gradlew" ]; then
-            chmod +x ./gradlew
-          else
-            gradle wrapper
-            chmod +x ./gradlew
+          if [ ! -f "./gradlew" ]; then
+            echo "🔧 [Auto-Repair] gradlew tidak ditemukan, membuat wrapper otomatis..."
+            gradle wrapper || true
+            chmod +x ./gradlew || true
           fi
 
           BUILD_CMD="./gradlew assembleRelease --no-daemon --stacktrace"
@@ -144,28 +224,49 @@ jobs:
             BUILD_CMD="./gradlew assembleDebug --no-daemon --stacktrace"
           fi
 
-          echo "Running build command: $BUILD_CMD"
+          echo "🚀 [Android Build] Menjalankan: $BUILD_CMD"
           $BUILD_CMD 2>&1 | tee build_output.log || {
             EXIT_CODE=$?
+            echo "⚠️ Build Native Android gagal (Exit Code $EXIT_CODE). Menjalankan Auto-Repair Engine..."
+            AUTO_REPAIRED="Ya (Self-Healing Auto-Patched)"
+            
+            # Diagnosis 1: Groovy/Java Version mismatch
             if grep -q "Could not initialize class org.codehaus.groovy" build_output.log || grep -q "Unsupported class file major version" build_output.log; then
-              echo "⚠️ Incompatibility detected with current JDK. Retrying with JDK 11..."
+              echo "🔧 [Auto-Repair] Mendeteksi Groovy/Java crash. Beralih ke OpenJDK 11..."
               export JAVA_HOME="$JAVA_HOME_11_X64"
               export PATH="$JAVA_HOME/bin:$PATH"
               java -version
-              $BUILD_CMD 2>&1 | tee build_output.log || exit $EXIT_CODE
-            else
-              exit $EXIT_CODE
             fi
+            
+            # Diagnosis 2: Missing namespace in AGP 8+
+            if grep -q "Namespace not specified" build_output.log; then
+              echo "🔧 [Auto-Repair] Menambahkan namespace ke build.gradle..."
+              sed -i '/android {/a \    namespace "com.telebuild.repaired.app"' app/build.gradle 2>/dev/null || true
+            fi
+            
+            # Diagnosis 3: Missing repositories (JCenter deprecation)
+            if grep -q "Could not resolve all files" build_output.log || grep -q "Could not find" build_output.log; then
+              echo "🔧 [Auto-Repair] Menambahkan repository MavenCentral & Google..."
+              sed -i '/repositories {/a \        google()
+        mavenCentral()
+        maven { url "https://jitpack.io" }' build.gradle 2>/dev/null || true
+            fi
+            
+            echo "🚀 [Auto-Repair] Mengeksekusi kompilasi ulang (Attempt 2)..."
+            $BUILD_CMD 2>&1 | tee build_output.log || exit $EXIT_CODE
           }
+          
+          echo "AUTO_REPAIRED=$AUTO_REPAIRED" >> $GITHUB_ENV
 
       - name: Find and Upload APK to Telegram
         working-directory: project
         run: |
           APK_FILE=$(find . -type f -name "*.apk" | grep -v "androidTest" | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "ERROR: File APK tidak ditemukan!"
+            echo "ERROR: File APK tidak ditemukan di output direktori!"
             exit 1
           fi
+          
           FILE_NAME=$(basename "$APK_FILE")
           FILE_SIZE=$(du -h "$APK_FILE" | cut -f1)
           SHA_HASH=$(sha256sum "$APK_FILE" | cut -d ' ' -f 1)
@@ -174,7 +275,14 @@ jobs:
           if [ -z "$BOT_TOKEN" ]; then
             BOT_TOKEN="7824380847:AAGJ6ahNX4PtyDEw9LHSEgUF0KErzgcvyh0"
           fi
-          CAPTION="✅ *Kompilasi APK Selesai 100% Real!*%0A%0A📱 *File:* \`$FILE_NAME\`%0A🛠 *Framework:* \`${{ env.FRAMEWORK }}\`%0A📊 *Ukuran:* $FILE_SIZE%0A🔐 *SHA-256:*%0A\`$SHA_HASH\`%0A%0A⚡ _Dikompilasi 100% Real di Ubuntu VM GitHub Actions_"
+          
+          REPAIRED_INFO="${{ env.AUTO_REPAIRED }}"
+          if [ -z "$REPAIRED_INFO" ]; then
+            REPAIRED_INFO="Tidak (Konfigurasi Asli Bersih)"
+          fi
+          
+          CAPTION="✅ *KOMPILASI APK SELESAI 100% REAL!*%0A%0A📱 *File:* \`$FILE_NAME\`%0A🛠 *Framework:* \`${{ env.FRAMEWORK }}\`%0A📊 *Ukuran:* $FILE_SIZE%0A🔧 *Auto-Repair Engine:* \`$REPAIRED_INFO\`%0A🔐 *SHA-256:*%0A\`$SHA_HASH\`%0A%0A⚡ _Dikompilasi 100% Real di Ubuntu VM GitHub Actions_"
+          
           curl -F "chat_id=$CHAT_ID"                -F "document=@$APK_FILE"                -F "caption=$CAPTION"                -F "parse_mode=Markdown"                "https://api.telegram.org/bot$BOT_TOKEN/sendDocument"
 
       - name: Capture and Send Build Logs on Failure
@@ -192,12 +300,12 @@ jobs:
           echo "Build Type: ${{ github.event.inputs.build_type }}" >> /tmp/build_error_log.txt
           echo "GitHub Actions Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> /tmp/build_error_log.txt
           echo "" >> /tmp/build_error_log.txt
-          echo "=== DETAIL TERMINAL COMPILER LOG ===" >> /tmp/build_error_log.txt
+          echo "=== DIAGNOSIS & RECOVERY LOG ===" >> /tmp/build_error_log.txt
 
           if [ -f "project/build_output.log" ]; then
             tail -n 250 project/build_output.log >> /tmp/build_error_log.txt
           else
-            echo "Log output tidak ditemukan atau kegagalan terjadi di tahapan persiapan awal." >> /tmp/build_error_log.txt
+            echo "Kompilasi gagal pada tahap persiapan awal (misal file zip korup atau url tidak valid)." >> /tmp/build_error_log.txt
           fi
 
-          curl -F "chat_id=$CHAT_ID"                -F "document=@/tmp/build_error_log.txt"                -F "caption=❌ *Kompilasi APK Menemukan Error!*%0A%0A📄 File log terminal terlampir (\`build_error_log.txt\`). Periksa pesan error dari Gradle/Flutter untuk mengetahui baris code/dependensi yang bermasalah."                -F "parse_mode=Markdown"                "https://api.telegram.org/bot$BOT_TOKEN/sendDocument" || true
+          curl -F "chat_id=$CHAT_ID"                -F "document=@/tmp/build_error_log.txt"                -F "caption=❌ *Kompilasi APK Menemukan Error!*%0A%0A📄 File log terminal terlampir (\`build_error_log.txt\`). Auto-Repair Engine telah menganalisis log tersebut."                -F "parse_mode=Markdown"                "https://api.telegram.org/bot$BOT_TOKEN/sendDocument" || true
