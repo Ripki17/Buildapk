@@ -62,17 +62,15 @@ jobs:
         run: |
           mkdir -p project
           cd project
-
           SOURCE_TYPE="${{ github.event.inputs.source_type }}"
           SOURCE_URL="${{ github.event.inputs.source_url }}"
 
           if [ "$SOURCE_TYPE" = "zip_url" ]; then
-            echo "📥 Mengunduh Project ZIP dari Telegram..."
+            echo "Mengunduh Project ZIP..."
             curl -L "$SOURCE_URL" -o project_upload.zip
             unzip -q project_upload.zip || 7z x project_upload.zip
             rm -f project_upload.zip
 
-            # If zip contains a single root directory, flatten it
             SUBDIRS=(*/)
             if [ ${#SUBDIRS[@]} -eq 1 ] && [ -d "${SUBDIRS[0]}" ] && [ ! -f "pubspec.yaml" ] && [ ! -f "build.gradle" ]; then
               echo "Flattening nested single root folder: ${SUBDIRS[0]}"
@@ -83,7 +81,6 @@ jobs:
             echo "Cloning Git repository: $SOURCE_URL..."
             git clone --depth 1 -b ${{ github.event.inputs.branch }} "$SOURCE_URL" .
           fi
-
           echo "Direktori project siap:"
           ls -la
 
@@ -112,7 +109,6 @@ jobs:
         run: |
           ./update_tg_log.sh "${{ secrets.TELEGRAM_BOT_TOKEN }}" "${{ github.event.inputs.chat_id }}" "${{ github.event.inputs.status_message_id }}" "🔍 *Framework Terdeteksi:* `${{ env.FRAMEWORK }}`%0A⚙️ *Mode:* `${{ github.event.inputs.build_type }}`%0A⏳ *Status:* Menyiapkan toolchain dan SDK..."
 
-      # === TOOLCHAIN SETUP ===
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -131,7 +127,6 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # === BUILD EXECUTION ===
       - name: Send Live Log: Dependencies & Pre-build
         run: |
           ./update_tg_log.sh "${{ secrets.TELEGRAM_BOT_TOKEN }}" "${{ github.event.inputs.chat_id }}" "${{ github.event.inputs.status_message_id }}" "⚡ *Tahap 2: Menyiapkan Dependencies...*%0AFramework: `${{ env.FRAMEWORK }}`%0A💻 Menjalankan resolusi paket & library..."
@@ -142,12 +137,10 @@ jobs:
         run: |
           echo "Menjalankan flutter pub get..."
           flutter pub get
-
           BUILD_FLAG="--release"
           if [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
             BUILD_FLAG="--debug"
           fi
-
           echo "Menjalankan flutter build apk $BUILD_FLAG..."
           flutter build apk $BUILD_FLAG --no-tree-shake-icons
 
@@ -161,7 +154,6 @@ jobs:
             gradle wrapper
             chmod +x ./gradlew
           fi
-
           BUILD_TYPE="${{ github.event.inputs.build_type }}"
           if [ "$BUILD_TYPE" = "release" ]; then
             ./gradlew assembleRelease --stacktrace || ./gradlew assemble
@@ -169,22 +161,18 @@ jobs:
             ./gradlew assembleDebug --stacktrace
           fi
 
-      # === LOCATE & DELIVER APK ===
       - name: Locate Generated APK & Calculate Hash
         id: find_apk
         working-directory: project
         run: |
           APK_FILE=$(find . -type f -name "*.apk" | grep -v "androidTest" | head -n 1)
-
           if [ -z "$APK_FILE" ]; then
             echo "ERROR: File APK tidak ditemukan!"
             exit 1
           fi
-
           FILE_SIZE=$(du -h "$APK_FILE" | cut -f1)
           SHA_HASH=$(sha256sum "$APK_FILE" | cut -d ' ' -f 1)
           FILE_NAME=$(basename "$APK_FILE")
-
           echo "apk_path=$APK_FILE" >> $GITHUB_OUTPUT
           echo "apk_name=$FILE_NAME" >> $GITHUB_OUTPUT
           echo "file_size=$FILE_SIZE" >> $GITHUB_OUTPUT
@@ -203,9 +191,7 @@ jobs:
           SHA_HASH="${{ steps.find_apk.outputs.sha256 }}"
           FRAMEWORK="${{ env.FRAMEWORK }}"
           CHAT_ID="${{ github.event.inputs.chat_id }}"
-
-          CAPTION="✅ *Kompilasi APK Selesai!*%0A%0A📱 *File:* `$FILE_NAME`%0A🛠 *Framework:* `$FRAMEWORK`%0A📊 *Ukuran:* $FILE_SIZE%0A🔐 *SHA-256:*%0A`$SHA_HASH`%0A%0A⚡ _Dikompilasi 24/7 otomatis via TeleBuild Engine_"
-
+          CAPTION="✅ *Kompilasi APK Selesai!*%0A%0A📱 *File:* \`$FILE_NAME\`%0A🛠 *Framework:* \`$FRAMEWORK\`%0A📊 *Ukuran:* $FILE_SIZE%0A🔐 *SHA-256:*%0A\`$SHA_HASH\`%0A%0A⚡ _Dikompilasi 24/7 otomatis via TeleBuild Engine_"
           curl -F "chat_id=$CHAT_ID" \
                -F "document=@$APK_PATH" \
                -F "caption=$CAPTION" \
