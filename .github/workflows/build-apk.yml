@@ -1,32 +1,138 @@
-name: Build APK Real Runner
+name: Build Native Android & Flutter APK
 
 on:
   workflow_dispatch:
     inputs:
       source_type:
-        description: 'Source type'
+        description: 'Source type: git_url or zip_url'
         required: true
         default: 'git_url'
       source_url:
-        description: 'Target Source URL'
+        description: 'Target Git URL or Telegram Direct ZIP Download URL'
         required: true
-        default: 'https://github.com/flutter/samples'
+        default: 'https://github.com/android/architecture-samples'
+      branch:
+        description: 'Branch or Tag (if git_url)'
+        required: false
+        default: 'main'
       build_type:
-        description: 'Build variant'
+        description: 'Build variant (debug or release)'
         required: true
         default: 'release'
       chat_id:
-        description: 'Telegram Chat ID'
+        description: 'Telegram Chat ID to send APK & live logs to'
         required: true
       status_message_id:
-        description: 'Status Message ID'
+        description: 'Telegram Message ID to update live log preview'
         required: false
         default: ''
 
 jobs:
   build:
+    name: Auto Detect & Compile APK
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+
     steps:
-      - name: Ping Telegram
+      - name: Setup Workspace
         run: |
-          curl -s -X POST 'https://api.telegram.org/bot7824380847:AAGJ6ahNX4PtyDEw9LHSEgUF0KErzgcvyh0/sendMessage'             -d 'chat_id=7829018304'             -d 'text=🚀 REAL GITHUB RUNNER IS RUNNING ON UBUNTU VM!'
+          mkdir -p project
+          cd project
+          SOURCE_TYPE="${{ github.event.inputs.source_type }}"
+          SOURCE_URL="${{ github.event.inputs.source_url }}"
+          if [ "$SOURCE_TYPE" = "zip_url" ]; then
+            echo "Mengunduh Project ZIP..."
+            curl -L "$SOURCE_URL" -o project.zip
+            unzip -q project.zip || 7z x project.zip
+            rm -f project.zip
+            SUBDIRS=(*/)
+            if [ ${#SUBDIRS[@]} -eq 1 ] && [ -d "${SUBDIRS[0]}" ] && [ ! -f "pubspec.yaml" ] && [ ! -f "build.gradle" ]; then
+              echo "Flattening nested single root folder: ${SUBDIRS[0]}"
+              mv ${SUBDIRS[0]}* . 2>/dev/null || true
+              mv ${SUBDIRS[0]}.* . 2>/dev/null || true
+            fi
+          else
+            echo "Cloning Git repository..."
+            git clone --depth 1 -b ${{ github.event.inputs.branch }} "$SOURCE_URL" .
+          fi
+          ls -la
+
+      - name: Detect Framework
+        id: detect
+        working-directory: project
+        run: |
+          if [ -f "pubspec.yaml" ]; then
+            echo "FRAMEWORK=flutter" >> $GITHUB_ENV
+            echo "Detected Flutter"
+          elif [ -f "settings.gradle" ] || [ -f "settings.gradle.kts" ] || [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
+            echo "FRAMEWORK=native-android" >> $GITHUB_ENV
+            echo "Detected Native Android"
+          else
+            echo "FRAMEWORK=unknown" >> $GITHUB_ENV
+            echo "Unknown framework"
+            exit 1
+          fi
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Flutter
+        if: env.FRAMEWORK == 'flutter'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.x'
+          channel: 'stable'
+          cache: true
+
+      - name: Build Flutter
+        if: env.FRAMEWORK == 'flutter'
+        working-directory: project
+        run: |
+          flutter pub get
+          BUILD_FLAG="--release"
+          if [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
+            BUILD_FLAG="--debug"
+          fi
+          flutter build apk $BUILD_FLAG --no-tree-shake-icons
+
+      - name: Build Native Android
+        if: env.FRAMEWORK == 'native-android'
+        working-directory: project
+        run: |
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+          else
+            gradle wrapper
+            chmod +x ./gradlew
+          fi
+          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
+            ./gradlew assembleRelease --stacktrace || ./gradlew assemble
+          else
+            ./gradlew assembleDebug --stacktrace
+          fi
+
+      - name: Find and Upload APK to Telegram
+        working-directory: project
+        run: |
+          APK_FILE=$(find . -type f -name "*.apk" | grep -v "androidTest" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "ERROR: File APK tidak ditemukan!"
+            exit 1
+          fi
+          FILE_NAME=$(basename "$APK_FILE")
+          FILE_SIZE=$(du -h "$APK_FILE" | cut -f1)
+          SHA_HASH=$(sha256sum "$APK_FILE" | cut -d ' ' -f 1)
+          CHAT_ID="${{ github.event.inputs.chat_id }}"
+          BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          if [ -z "$BOT_TOKEN" ]; then
+            BOT_TOKEN="7824380847:AAGJ6ahNX4PtyDEw9LHSEgUF0KErzgcvyh0"
+          fi
+          CAPTION="✅ *Kompilasi APK Selesai 100% Real!*%0A%0A📱 *File:* \`$FILE_NAME\`%0A🛠 *Framework:* \`${{ env.FRAMEWORK }}\`%0A📊 *Ukuran:* $FILE_SIZE%0A🔐 *SHA-256:*%0A\`$SHA_HASH\`%0A%0A⚡ _Dikompilasi 100% Real di Ubuntu VM GitHub Actions_"
+          curl -F "chat_id=$CHAT_ID"                -F "document=@$APK_FILE"                -F "caption=$CAPTION"                -F "parse_mode=Markdown"                "https://api.telegram.org/bot$BOT_TOKEN/sendDocument"
