@@ -78,20 +78,19 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | sdkmanager --licenses 2>/dev/null || yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
 
-      - name: Setup Flutter
+      - name: Setup Flutter (if Flutter)
         if: env.FRAMEWORK == 'flutter'
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.29.x'
           channel: 'stable'
           cache: true
 
-      - name: Build Flutter
+      - name: Build Flutter APK
         if: env.FRAMEWORK == 'flutter'
         working-directory: project
         run: |
@@ -102,7 +101,7 @@ jobs:
           fi
           flutter build apk $BUILD_FLAG --no-tree-shake-icons
 
-      - name: Build Native Android
+      - name: Build Native Android APK
         if: env.FRAMEWORK == 'native-android'
         working-directory: project
         run: |
@@ -113,9 +112,9 @@ jobs:
             chmod +x ./gradlew
           fi
           if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
-            ./gradlew assembleRelease --stacktrace || ./gradlew assemble
+            ./gradlew assembleRelease --no-daemon --stacktrace || ./gradlew assembleDebug --no-daemon --stacktrace
           else
-            ./gradlew assembleDebug --stacktrace
+            ./gradlew assembleDebug --no-daemon --stacktrace
           fi
 
       - name: Find and Upload APK to Telegram
@@ -136,3 +135,14 @@ jobs:
           fi
           CAPTION="✅ *Kompilasi APK Selesai 100% Real!*%0A%0A📱 *File:* \`$FILE_NAME\`%0A🛠 *Framework:* \`${{ env.FRAMEWORK }}\`%0A📊 *Ukuran:* $FILE_SIZE%0A🔐 *SHA-256:*%0A\`$SHA_HASH\`%0A%0A⚡ _Dikompilasi 100% Real di Ubuntu VM GitHub Actions_"
           curl -F "chat_id=$CHAT_ID"                -F "document=@$APK_FILE"                -F "caption=$CAPTION"                -F "parse_mode=Markdown"                "https://api.telegram.org/bot$BOT_TOKEN/sendDocument"
+
+      - name: Report Failure to Telegram
+        if: failure()
+        run: |
+          CHAT_ID="${{ github.event.inputs.chat_id }}"
+          BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          if [ -z "$BOT_TOKEN" ]; then
+            BOT_TOKEN="7824380847:AAGJ6ahNX4PtyDEw9LHSEgUF0KErzgcvyh0"
+          fi
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage"                -d "chat_id=$CHAT_ID"                -d "parse_mode=Markdown"                -d "text=❌ *Build APK di GitHub Actions Menemukan Kendala!*%0A%0ASilakan periksa log terminal lengkap di runner Ubuntu:%0A$RUN_URL" || true
