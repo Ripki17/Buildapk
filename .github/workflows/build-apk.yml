@@ -79,6 +79,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup JDK 11 (Fallback for legacy Gradle projects)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
       - name: Accept Android SDK Licenses
         run: |
           yes | sdkmanager --licenses 2>/dev/null || yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
@@ -94,28 +100,63 @@ jobs:
         if: env.FRAMEWORK == 'flutter'
         working-directory: project
         run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
           flutter pub get
           BUILD_FLAG="--release"
           if [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
             BUILD_FLAG="--debug"
           fi
-          flutter build apk $BUILD_FLAG --no-tree-shake-icons
+          flutter build apk $BUILD_FLAG --no-tree-shake-icons 2>&1 | tee build_output.log
 
       - name: Build Native Android APK
         if: env.FRAMEWORK == 'native-android'
         working-directory: project
         run: |
+          # Detect legacy gradle
+          if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
+            GRADLE_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties || echo "")
+            echo "Gradle wrapper distribution URL: $GRADLE_URL"
+            if echo "$GRADLE_URL" | grep -qE "gradle-([456]\.|7\.[0-2])"; then
+              echo "⚠️ Legacy Gradle detected! Defaulting to JDK 11..."
+              export JAVA_HOME="$JAVA_HOME_11_X64"
+              export PATH="$JAVA_HOME/bin:$PATH"
+            else
+              export JAVA_HOME="$JAVA_HOME_17_X64"
+              export PATH="$JAVA_HOME/bin:$PATH"
+            fi
+          else
+            export JAVA_HOME="$JAVA_HOME_17_X64"
+            export PATH="$JAVA_HOME/bin:$PATH"
+          fi
+
+          java -version
+
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
           else
             gradle wrapper
             chmod +x ./gradlew
           fi
-          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
-            ./gradlew assembleRelease --no-daemon --stacktrace || ./gradlew assembleDebug --no-daemon --stacktrace
-          else
-            ./gradlew assembleDebug --no-daemon --stacktrace
+
+          BUILD_CMD="./gradlew assembleRelease --no-daemon --stacktrace"
+          if [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
+            BUILD_CMD="./gradlew assembleDebug --no-daemon --stacktrace"
           fi
+
+          echo "Running build command: $BUILD_CMD"
+          $BUILD_CMD 2>&1 | tee build_output.log || {
+            EXIT_CODE=$?
+            if grep -q "Could not initialize class org.codehaus.groovy" build_output.log || grep -q "Unsupported class file major version" build_output.log; then
+              echo "⚠️ Incompatibility detected with current JDK. Retrying with JDK 11..."
+              export JAVA_HOME="$JAVA_HOME_11_X64"
+              export PATH="$JAVA_HOME/bin:$PATH"
+              java -version
+              $BUILD_CMD 2>&1 | tee build_output.log || exit $EXIT_CODE
+            else
+              exit $EXIT_CODE
+            fi
+          }
 
       - name: Find and Upload APK to Telegram
         working-directory: project
@@ -136,7 +177,7 @@ jobs:
           CAPTION="✅ *Kompilasi APK Selesai 100% Real!*%0A%0A📱 *File:* \`$FILE_NAME\`%0A🛠 *Framework:* \`${{ env.FRAMEWORK }}\`%0A📊 *Ukuran:* $FILE_SIZE%0A🔐 *SHA-256:*%0A\`$SHA_HASH\`%0A%0A⚡ _Dikompilasi 100% Real di Ubuntu VM GitHub Actions_"
           curl -F "chat_id=$CHAT_ID"                -F "document=@$APK_FILE"                -F "caption=$CAPTION"                -F "parse_mode=Markdown"                "https://api.telegram.org/bot$BOT_TOKEN/sendDocument"
 
-      - name: Report Failure to Telegram
+      - name: Capture and Send Build Logs on Failure
         if: failure()
         run: |
           CHAT_ID="${{ github.event.inputs.chat_id }}"
@@ -144,5 +185,19 @@ jobs:
           if [ -z "$BOT_TOKEN" ]; then
             BOT_TOKEN="7824380847:AAGJ6ahNX4PtyDEw9LHSEgUF0KErzgcvyh0"
           fi
-          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage"                -d "chat_id=$CHAT_ID"                -d "parse_mode=Markdown"                -d "text=❌ *Build APK di GitHub Actions Menemukan Kendala!*%0A%0ASilakan periksa log terminal lengkap di runner Ubuntu:%0A$RUN_URL" || true
+
+          echo "=== TELEBUILD COMPILATION ERROR LOG ===" > /tmp/build_error_log.txt
+          echo "Timestamp: $(date)" >> /tmp/build_error_log.txt
+          echo "Framework: ${{ env.FRAMEWORK }}" >> /tmp/build_error_log.txt
+          echo "Build Type: ${{ github.event.inputs.build_type }}" >> /tmp/build_error_log.txt
+          echo "GitHub Actions Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> /tmp/build_error_log.txt
+          echo "" >> /tmp/build_error_log.txt
+          echo "=== DETAIL TERMINAL COMPILER LOG ===" >> /tmp/build_error_log.txt
+
+          if [ -f "project/build_output.log" ]; then
+            tail -n 250 project/build_output.log >> /tmp/build_error_log.txt
+          else
+            echo "Log output tidak ditemukan atau kegagalan terjadi di tahapan persiapan awal." >> /tmp/build_error_log.txt
+          fi
+
+          curl -F "chat_id=$CHAT_ID"                -F "document=@/tmp/build_error_log.txt"                -F "caption=❌ *Kompilasi APK Menemukan Error!*%0A%0A📄 File log terminal terlampir (\`build_error_log.txt\`). Periksa pesan error dari Gradle/Flutter untuk mengetahui baris code/dependensi yang bermasalah."                -F "parse_mode=Markdown"                "https://api.telegram.org/bot$BOT_TOKEN/sendDocument" || true
