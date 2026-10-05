@@ -258,7 +258,7 @@ jobs:
           CHAT_ID="${{ github.event.inputs.chat_id }}"
           BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}"
           if [ -z "$BOT_TOKEN" ]; then
-            BOT_TOKEN="7824380847:AAGJ6ahNX4PtyDEw9LHSEgUF0KErzgcvyh0"
+            BOT_TOKEN="7824380847:AAFCh8opCUycRzaXHY2LHpdLtxMayhEcvTw"
           fi
           
           REPAIRED_INFO="${{ env.AUTO_REPAIRED }}"
@@ -280,7 +280,7 @@ jobs:
           CHAT_ID="${{ github.event.inputs.chat_id }}"
           BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}"
           if [ -z "$BOT_TOKEN" ]; then
-            BOT_TOKEN="7824380847:AAGJ6ahNX4PtyDEw9LHSEgUF0KErzgcvyh0"
+            BOT_TOKEN="7824380847:AAFCh8opCUycRzaXHY2LHpdLtxMayhEcvTw"
           fi
 
           echo "=== TELEBUILD COMPILATION ERROR LOG ===" > /tmp/build_error_log.txt
