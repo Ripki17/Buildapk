@@ -23,7 +23,7 @@ from telegram.ext import (
     filters
 )
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "7824380847:AAGJ6ahNX4PtyDEw9LHSEgUF0KErzgcvyh0")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "7824380847:AAFYhRN7oQ7nR3QdrRASc2RWg9vtDS4Ron4")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "YOUR_GITHUB_PERSONAL_ACCESS_TOKEN")
 GITHUB_OWNER = os.getenv("GITHUB_OWNER", "rkarifqi")
 GITHUB_REPO = os.getenv("GITHUB_REPO", "apk-builder-runner")
