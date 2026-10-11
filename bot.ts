@@ -1,7 +1,7 @@
 import { Bot } from 'grammy';
 import { Octokit } from '@octokit/rest';
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '7824380847:AAGJ6ahNX4PtyDEw9LHSEgUF0KErzgcvyh0';
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '7824380847:AAFYhRN7oQ7nR3QdrRASc2RWg9vtDS4Ron4';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || 'YOUR_GITHUB_PAT';
 const GITHUB_OWNER = process.env.GITHUB_OWNER || 'rkarifqi';
 const GITHUB_REPO = process.env.GITHUB_REPO || 'apk-builder-runner';
