@@ -68,7 +68,7 @@ jobs:
             rm -f project.zip
 
             SUBDIRS=(*/)
-            if [ ${#SUBDIRS[@]} -eq 1 ] && [ -d "${SUBDIRS[0]}" ] && [ ! -f "pubspec.yaml" ] && [ ! -f "build.gradle" ] && [ ! -f "settings.gradle" ]; then
+            if [ ${#SUBDIRS[@]} -eq 1 ] && [ -d "${SUBDIRS[0]}" ] && [ ! -f "pubspec.yaml" ] && [ ! -f "build.gradle" ] && [ ! -f "settings.gradle" ] && [ ! -f "build.gradle.kts" ]; then
               echo "🔄 Flattening: ${SUBDIRS[0]}"
               mv ${SUBDIRS[0]}* . 2>/dev/null || true
               mv ${SUBDIRS[0]}.* . 2>/dev/null || true
@@ -128,6 +128,7 @@ jobs:
           grep -q "org.gradle.jvmargs" "$GRADLE_PROP" || echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8" >> "$GRADLE_PROP"
           grep -q "android.useAndroidX" "$GRADLE_PROP" || echo "android.useAndroidX=true" >> "$GRADLE_PROP"
           grep -q "android.enableJetifier" "$GRADLE_PROP" || echo "android.enableJetifier=true" >> "$GRADLE_PROP"
+          grep -q "android.newDsl" "$GRADLE_PROP" || echo "android.newDsl=false" >> "$GRADLE_PROP"
 
           [ -f "./gradlew" ] && chmod +x ./gradlew
           [ -f "android/gradlew" ] && chmod +x android/gradlew
@@ -140,9 +141,63 @@ jobs:
           channel: ${{ github.event.inputs.flutter_version || 'stable' }}
           cache: true
 
-      - name: Show Flutter Info
+      # ═══════════════════════════════════════════════════════════
+      # ✅ FIX UTAMA: Upgrade Gradle wrapper ke 8.14+ 
+      # ═══════════════════════════════════════════════════════════
+      - name: Pre-Fix Gradle Version
         if: env.FRAMEWORK == 'flutter'
-        run: flutter doctor -v
+        working-directory: project
+        run: |
+          echo "🔧 Upgrade Gradle wrapper ke 8.14.0..."
+          WRAPPER="android/gradle/wrapper/gradle-wrapper.properties"
+          if [ -f "$WRAPPER" ]; then
+            echo "=== SEBELUM ==="
+            cat "$WRAPPER"
+            sed -i 's|gradle-[0-9.]*-all.zip|gradle-8.14-all.zip|g' "$WRAPPER"
+            sed -i 's|gradle-[0-9.]*-bin.zip|gradle-8.14-bin.zip|g' "$WRAPPER"
+            echo "=== SESUDAH ==="
+            cat "$WRAPPER"
+          else
+            echo "⚠️ Wrapper tidak ada, buat baru..."
+            mkdir -p android/gradle/wrapper
+            cat > "$WRAPPER" <<'EOF'
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.14-bin.zip
+networkTimeout=10000
+validateDistributionUrl=true
+EOF
+          fi
+
+          echo "🔧 Patch build.gradle.kts (Kotlin DSL)..."
+          APP_KTS="android/app/build.gradle.kts"
+          if [ -f "$APP_KTS" ]; then
+            echo "=== Sebelum patch ==="
+            cat "$APP_KTS" | head -40
+            # Force SDK versions
+            sed -i 's/compileSdk *= *[0-9]*/compileSdk = 35/g' "$APP_KTS" || true
+            sed -i 's/targetSdk *= *[0-9]*/targetSdk = 35/g' "$APP_KTS" || true
+            sed -i 's/minSdk *= *[0-9]*/minSdk = 21/g' "$APP_KTS" || true
+          fi
+
+          # Kalau versi Groovy juga
+          APP_GRADLE="android/app/build.gradle"
+          if [ -f "$APP_GRADLE" ]; then
+            sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' "$APP_GRADLE" || true
+            sed -i 's/targetSdkVersion .*/targetSdkVersion 35/g' "$APP_GRADLE" || true
+            sed -i 's/minSdkVersion .*/minSdkVersion 21/g' "$APP_GRADLE" || true
+          fi
+
+          echo "🔧 Force JDK 17..."
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+
+          echo "🧹 Clean previous build..."
+          rm -rf build android/build android/app/build android/.gradle .gradle || true
+
+          echo "✅ Pre-fix done!"
 
       - name: Build Flutter APK
         if: env.FRAMEWORK == 'flutter'
@@ -164,7 +219,7 @@ jobs:
 
           echo "💻 [Flutter] Step 2: Building APK ($BUILD_FLAG)..."
           set +e
-          flutter build apk $BUILD_FLAG --no-tree-shake-icons 2>&1 | tee build_output.log
+          flutter build apk $BUILD_FLAG --no-tree-shake-icons --android-skip-build-dependency-validation 2>&1 | tee build_output.log
           BUILD_EXIT=${PIPESTATUS[0]}
           set -e
 
@@ -178,22 +233,31 @@ jobs:
               export PATH="$JAVA_HOME/bin:$PATH"
             fi
 
-            # Auto-repair #2: SDK version
-            if grep -qE "compileSdkVersion|Namespace not specified|Android SDK not found" build_output.log; then
-              echo "🔧 [Fix 2] Force compileSdk 34 & namespace..."
-              sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle 2>/dev/null || true
-              sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle 2>/dev/null || true
+            # Auto-repair #2: Gradle version mismatch
+            if grep -qE "Gradle version.*lower than|minimum supported version" build_output.log; then
+              echo "🔧 [Fix 2] Force upgrade Gradle ke 8.14..."
+              sed -i 's|gradle-[0-9.]*-all.zip|gradle-8.14-all.zip|g' android/gradle/wrapper/gradle-wrapper.properties || true
+              sed -i 's|gradle-[0-9.]*-bin.zip|gradle-8.14-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties || true
             fi
 
-            # Auto-repair #3: Gradle plugin version
+            # Auto-repair #3: SDK version
+            if grep -qE "compileSdkVersion|Namespace not specified|Android SDK not found|compileSdk" build_output.log; then
+              echo "🔧 [Fix 3] Force compileSdk 35 & namespace..."
+              sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' android/app/build.gradle 2>/dev/null || true
+              sed -i 's/targetSdkVersion .*/targetSdkVersion 35/g' android/app/build.gradle 2>/dev/null || true
+              sed -i 's/compileSdk *= *[0-9]*/compileSdk = 35/g' android/app/build.gradle.kts 2>/dev/null || true
+              sed -i 's/targetSdk *= *[0-9]*/targetSdk = 35/g' android/app/build.gradle.kts 2>/dev/null || true
+            fi
+
+            # Auto-repair #4: Repository
             if grep -qE "Could not find|Could not resolve" build_output.log; then
-              echo "🔧 [Fix 3] Menambahkan repository Google + MavenCentral..."
+              echo "🔧 [Fix 4] Menambahkan repository Google + MavenCentral..."
               sed -i '/repositories {/a \        google()\n        mavenCentral()\n        maven { url "https://jitpack.io" }' android/build.gradle 2>/dev/null || true
             fi
 
             echo "🚀 [Retry] Coba build ulang..."
             set +e
-            flutter build apk $BUILD_FLAG --no-tree-shake-icons 2>&1 | tee build_output_retry.log
+            flutter build apk $BUILD_FLAG --no-tree-shake-icons --android-skip-build-dependency-validation 2>&1 | tee build_output_retry.log
             RETRY_EXIT=${PIPESTATUS[0]}
             set -e
 
@@ -210,7 +274,7 @@ jobs:
               grep -A 20 "What went wrong" build_output_retry.log || tail -50 build_output_retry.log
               echo ""
               echo "=== Full error context ==="
-              grep -E "FAILURE|error:|Could not|Namespace|compileSdk|BUILD FAILED" build_output_retry.log | head -30 || true
+              grep -E "FAILURE|error:|Could not|Namespace|compileSdk|BUILD FAILED|Gradle version" build_output_retry.log | head -30 || true
               exit 1
             fi
           fi
@@ -266,9 +330,6 @@ jobs:
             fi
           fi
 
-      # ═══════════════════════════════════════════════
-      # DEBUG: Upload build log kalau gagal
-      # ═══════════════════════════════════════════════
       - name: Upload Build Log on Failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -280,26 +341,19 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # ═══════════════════════════════════════════════
-      # FIND APK — Fix path
-      # ═══════════════════════════════════════════════
       - name: Find APK File
         id: find_apk
         run: |
-          echo "🔍 Mencari APK di folder project..."
+          echo "🔍 Mencari APK..."
           find project -type f -name "*.apk" 2>/dev/null | head -20 || echo "Tidak ada"
           echo ""
-          echo "📁 Struktur build folder:"
-          ls -la project/build/app/outputs/ 2>/dev/null || echo "project/build/app/outputs/ tidak ada"
           ls -la project/build/app/outputs/flutter-apk/ 2>/dev/null || echo "flutter-apk folder tidak ada"
-          ls -la project/build/app/outputs/apk/ 2>/dev/null || echo "apk folder tidak ada"
           echo ""
 
           APK_FILE=$(find project -type f -name "*.apk" | grep -v "androidTest" | head -n 1)
           if [ -z "$APK_FILE" ]; then
             echo "❌ ERROR: File APK tidak ditemukan!"
-            echo ""
-            echo "=== ISI build_output.log (50 baris terakhir) ==="
+            echo "=== ISI build_output.log ==="
             tail -50 project/build_output.log 2>/dev/null || echo "Log tidak ada"
             exit 1
           fi
