@@ -47,42 +47,32 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      # ═══════════════════════════════════════════════════════════
-      # STEP 0: WELCOME BANNER
-      # ═══════════════════════════════════════════════════════════
-      - name: Welcome & Build Info
+      - name: Build Info
         run: |
-          echo "::group::Build Information"
           echo "=========================================================="
-          echo "        W E B 2 A P K   P R O   B U I L D E R"
-          echo "             Powered by GitHub Actions"
+          echo "        WEB2APK PRO BUILDER - GITHUB ACTIONS"
           echo "=========================================================="
-          echo "  Source Type  : ${{ github.event.inputs.source_type }}"
-          echo "  Source URL   : ${{ github.event.inputs.source_url }}"
-          echo "  Branch       : ${{ github.event.inputs.branch }}"
-          echo "  Build Type   : ${{ github.event.inputs.build_type }}"
-          echo "  Flutter Ver  : ${{ github.event.inputs.flutter_version }}"
-          echo "  Release Tag  : ${{ github.event.inputs.release_tag }}"
-          echo "  Chat ID      : ${{ github.event.inputs.chat_id }}"
-          echo "  Run ID       : ${{ github.run_id }}"
-          echo "  Triggered by : ${{ github.actor }}"
-          echo "  Started at   : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Source Type  : ${{ github.event.inputs.source_type }}"
+          echo "Source URL   : ${{ github.event.inputs.source_url }}"
+          echo "Branch       : ${{ github.event.inputs.branch }}"
+          echo "Build Type   : ${{ github.event.inputs.build_type }}"
+          echo "Flutter Ver  : ${{ github.event.inputs.flutter_version }}"
+          echo "Release Tag  : ${{ github.event.inputs.release_tag }}"
+          echo "Chat ID      : ${{ github.event.inputs.chat_id }}"
+          echo "Run ID       : ${{ github.run_id }}"
+          echo "Actor        : ${{ github.actor }}"
+          echo "Started at   : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo "=========================================================="
-          echo "::endgroup::"
 
-      # ═══════════════════════════════════════════════════════════
-      # STEP 1: SETUP WORKSPACE & EXTRACT PROJECT
-      # ═══════════════════════════════════════════════════════════
       - name: Download & Extract Project
         run: |
-          echo "::group::Workspace Setup"
           mkdir -p project
           cd project
           SOURCE_TYPE="${{ github.event.inputs.source_type }}"
           SOURCE_URL="${{ github.event.inputs.source_url }}"
 
           if [ "$SOURCE_TYPE" = "zip_url" ]; then
-            echo "[1/3] Downloading ZIP from: $SOURCE_URL"
+            echo "Downloading ZIP from: $SOURCE_URL"
             curl -L -s -S --connect-timeout 30 --retry 3 \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               "$SOURCE_URL" -o project.zip
@@ -90,61 +80,45 @@ jobs:
             FILE_HEAD=$(head -c 15 project.zip || echo "")
             if echo "$FILE_HEAD" | grep -qiE "<!doctype|<html|<error"; then
               echo "ERROR: Downloaded content is not a ZIP file!"
-              echo "First 20 lines of downloaded content:"
               head -n 20 project.zip
               exit 1
             fi
 
-            echo "[2/3] Extracting archive..."
+            echo "Extracting archive..."
             unzip -q project.zip 2>/dev/null || 7z x project.zip -y 2>/dev/null || tar -xf project.zip 2>/dev/null || true
             rm -f project.zip
 
-            echo "[3/3] Normalizing directory structure..."
             SUBDIRS=(*/)
             if [ ${#SUBDIRS[@]} -eq 1 ] && [ -d "${SUBDIRS[0]}" ] && [ ! -f "pubspec.yaml" ] && [ ! -f "build.gradle" ] && [ ! -f "build.gradle.kts" ] && [ ! -f "settings.gradle" ] && [ ! -f "settings.gradle.kts" ]; then
-              echo "  Flattening single root directory: ${SUBDIRS[0]}"
+              echo "Flattening single root directory: ${SUBDIRS[0]}"
               mv ${SUBDIRS[0]}* . 2>/dev/null || true
               mv ${SUBDIRS[0]}.* . 2>/dev/null || true
               rmdir "${SUBDIRS[0]}" 2>/dev/null || true
             fi
           else
-            echo "[1/2] Cloning repository: $SOURCE_URL (branch: ${{ github.event.inputs.branch }})"
-            git clone --depth 1 -b ${{ github.event.inputs.branch }} "$SOURCE_URL" . 2>&1 | tail -5
-            echo "[2/2] Clone complete"
+            echo "Cloning repository: $SOURCE_URL (branch: ${{ github.event.inputs.branch }})"
+            git clone --depth 1 -b ${{ github.event.inputs.branch }} "$SOURCE_URL" .
           fi
 
-          echo ""
           echo "Project root contents:"
           ls -la
-          echo "::endgroup::"
 
-      # ═══════════════════════════════════════════════════════════
-      # STEP 2: DETECT FRAMEWORK
-      # ═══════════════════════════════════════════════════════════
-      - name: Detect Project Framework
+      - name: Detect Framework
         working-directory: project
         run: |
-          echo "::group::Framework Detection"
           if [ -f "pubspec.yaml" ]; then
             echo "FRAMEWORK=flutter" >> $GITHUB_ENV
             echo "Framework detected: FLUTTER"
-            echo "  pubspec.yaml found at root"
           elif [ -f "settings.gradle" ] || [ -f "settings.gradle.kts" ] || [ -f "build.gradle" ] || [ -f "build.gradle.kts" ] || [ -d "app" ]; then
             echo "FRAMEWORK=native-android" >> $GITHUB_ENV
             echo "Framework detected: NATIVE ANDROID"
-            echo "  Gradle files found at root"
           else
             echo "FRAMEWORK=unknown" >> $GITHUB_ENV
             echo "ERROR: Framework not detected!"
-            echo "Neither pubspec.yaml nor Gradle files found."
             exit 1
           fi
-          echo "::endgroup::"
 
-      # ═══════════════════════════════════════════════════════════
-      # STEP 3: SETUP JDK
-      # ═══════════════════════════════════════════════════════════
-      - name: Setup Java Development Kit
+      - name: Setup JDK 17 and JDK 11
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -152,27 +126,21 @@ jobs:
             17
             11
 
-      - name: Accept Android SDK Licenses
+      - name: Setup Android SDK 36
         run: |
-          echo "Accepting Android SDK licenses..."
-          yes | sdkmanager --licenses 2>/dev/null || true
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
-          echo "Done"
+          echo "Installing Android SDK Platform 36..."
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools" > /dev/null 2>&1 || true
+          echo "Android SDK 36 ready"
 
-      # ═══════════════════════════════════════════════════════════
-      # STEP 4: PRE-BUILD AUTO-REPAIR
-      # ═══════════════════════════════════════════════════════════
       - name: Pre-Build Environment Patching
         working-directory: project
         run: |
-          echo "::group::Pre-Build Auto-Repair"
-
+          echo "Creating local.properties..."
           if [ -d "android" ]; then
             echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-            echo "Created android/local.properties"
           fi
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          echo "Created local.properties"
 
           GRADLE_PROP="android/gradle.properties"
           if [ ! -d "android" ]; then
@@ -188,13 +156,7 @@ jobs:
           [ -f "./gradlew" ] && chmod +x ./gradlew
           [ -f "android/gradlew" ] && chmod +x android/gradlew
 
-          echo "Gradle properties patched"
-          echo "::endgroup::"
-
-      # ═══════════════════════════════════════════════════════════
-      # STEP 5: SETUP FLUTTER
-      # ═══════════════════════════════════════════════════════════
-      - name: Setup Flutter SDK
+      - name: Setup Flutter
         if: env.FRAMEWORK == 'flutter'
         uses: subosito/flutter-action@v2
         with:
@@ -204,31 +166,44 @@ jobs:
       - name: Show Flutter Version
         if: env.FRAMEWORK == 'flutter'
         run: |
-          echo "::group::Flutter Doctor"
           flutter --version
-          echo ""
-          flutter doctor -v
-          echo "::endgroup::"
 
       # ═══════════════════════════════════════════════════════════
-      # STEP 6: FIX GRADLE VERSION
+      # FIX UTAMA: PATCH PUBSPEC & SDK VERSIONS
       # ═══════════════════════════════════════════════════════════
-      - name: Pre-Fix Gradle & SDK Versions
+      - name: Pre-Fix Dependencies & SDK Versions
         if: env.FRAMEWORK == 'flutter'
         working-directory: project
         run: |
-          echo "::group::Gradle Wrapper Fix"
+          echo "=========================================================="
+          echo "   PRE-FIX: Dependencies & SDK Versions"
+          echo "=========================================================="
+
+          # ── FIX 1: font_awesome_flutter compatibility ──
+          echo ""
+          echo "[Fix 1] Checking font_awesome_flutter..."
+          if [ -f "pubspec.yaml" ]; then
+            CURRENT_FA=$(grep -E "^\s*font_awesome_flutter:" pubspec.yaml | head -1 || echo "")
+            echo "Current: $CURRENT_FA"
+
+            if echo "$CURRENT_FA" | grep -qE "font_awesome_flutter"; then
+              echo "Upgrading font_awesome_flutter to ^11.0.0..."
+              sed -i 's/font_awesome_flutter: .*/font_awesome_flutter: ^11.0.0/g' pubspec.yaml
+              echo "Updated:"
+              grep -E "font_awesome_flutter" pubspec.yaml
+            fi
+          fi
+
+          # ── FIX 2: Gradle wrapper 8.14 ──
+          echo ""
+          echo "[Fix 2] Upgrading Gradle wrapper..."
           WRAPPER="android/gradle/wrapper/gradle-wrapper.properties"
           if [ -f "$WRAPPER" ]; then
-            echo "Before fix:"
-            cat "$WRAPPER"
             sed -i 's|gradle-[0-9.]*-all.zip|gradle-8.14-all.zip|g' "$WRAPPER"
             sed -i 's|gradle-[0-9.]*-bin.zip|gradle-8.14-bin.zip|g' "$WRAPPER"
-            echo ""
-            echo "After fix:"
+            echo "Gradle wrapper updated:"
             cat "$WRAPPER"
           else
-            echo "Wrapper not found, creating new one..."
             mkdir -p android/gradle/wrapper
             printf '%s\n' \
               'distributionBase=GRADLE_USER_HOME' \
@@ -239,39 +214,40 @@ jobs:
               'networkTimeout=10000' \
               'validateDistributionUrl=true' \
               > "$WRAPPER"
-            cat "$WRAPPER"
           fi
-          echo "::endgroup::"
 
-          echo "::group::SDK Version Fix"
+          # ── FIX 3: compileSdk 36 & targetSdk 36 ──
+          echo ""
+          echo "[Fix 3] Setting compileSdk/targetSdk to 36..."
           APP_KTS="android/app/build.gradle.kts"
           if [ -f "$APP_KTS" ]; then
             echo "Patching build.gradle.kts..."
-            sed -i 's/compileSdk *= *[0-9]*/compileSdk = 35/g' "$APP_KTS" || true
-            sed -i 's/targetSdk *= *[0-9]*/targetSdk = 35/g' "$APP_KTS" || true
+            sed -i 's/compileSdk *= *[0-9]*/compileSdk = 36/g' "$APP_KTS" || true
+            sed -i 's/targetSdk *= *[0-9]*/targetSdk = 36/g' "$APP_KTS" || true
             sed -i 's/minSdk *= *[0-9]*/minSdk = 21/g' "$APP_KTS" || true
+            grep -E "Sdk" "$APP_KTS" || true
           fi
 
           APP_GRADLE="android/app/build.gradle"
           if [ -f "$APP_GRADLE" ]; then
             echo "Patching build.gradle..."
-            sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' "$APP_GRADLE" || true
-            sed -i 's/targetSdkVersion .*/targetSdkVersion 35/g' "$APP_GRADLE" || true
+            sed -i 's/compileSdkVersion .*/compileSdkVersion 36/g' "$APP_GRADLE" || true
+            sed -i 's/targetSdkVersion .*/targetSdkVersion 36/g' "$APP_GRADLE" || true
             sed -i 's/minSdkVersion .*/minSdkVersion 21/g' "$APP_GRADLE" || true
+            grep -E "SdkVersion" "$APP_GRADLE" || true
           fi
 
-          export JAVA_HOME="$JAVA_HOME_17_X64"
-          export PATH="$JAVA_HOME/bin:$PATH"
+          # ── FIX 4: Clean old build cache ──
+          echo ""
+          echo "[Fix 4] Cleaning build artifacts..."
+          rm -rf build android/build android/app/build android/.gradle .gradle pubspec.lock .dart_tool || true
+          echo "Cleaned"
 
-          echo "Cleaning previous build artifacts..."
-          rm -rf build android/build android/app/build android/.gradle .gradle || true
+          echo ""
+          echo "=========================================================="
+          echo "   PRE-FIX COMPLETE"
+          echo "=========================================================="
 
-          echo "Done!"
-          echo "::endgroup::"
-
-      # ═══════════════════════════════════════════════════════════
-      # STEP 7: BUILD FLUTTER APK
-      # ═══════════════════════════════════════════════════════════
       - name: Build Flutter APK
         if: env.FRAMEWORK == 'flutter'
         working-directory: project
@@ -279,92 +255,105 @@ jobs:
           export JAVA_HOME="$JAVA_HOME_17_X64"
           export PATH="$JAVA_HOME/bin:$PATH"
 
-          echo "::group::Resolve Dependencies"
-          flutter pub get || {
-            echo "pub get failed, attempting auto-fix..."
+          echo "=== STEP 1: flutter pub get ==="
+          flutter clean || true
+          flutter pub get 2>&1 | tee pubget.log
+          PUBGET_EXIT=$?
+
+          if [ $PUBGET_EXIT -ne 0 ]; then
+            echo "=== pub get failed, retrying with clean cache ==="
             rm -f pubspec.lock
-            flutter clean || true
-            flutter pub get --no-example || flutter pub upgrade --major-versions
-          }
-          echo "::endgroup::"
+            flutter pub cache repair || true
+            flutter pub get 2>&1 | tee pubget_retry.log
+          fi
 
           BUILD_FLAG="--release"
           [ "${{ github.event.inputs.build_type }}" = "debug" ] && BUILD_FLAG="--debug"
 
-          echo "::group::Flutter Build ($BUILD_FLAG)"
+          echo ""
+          echo "=== STEP 2: flutter build apk $BUILD_FLAG ==="
           set +e
           flutter build apk $BUILD_FLAG --no-tree-shake-icons --android-skip-build-dependency-validation 2>&1 | tee build_output.log
           BUILD_EXIT=${PIPESTATUS[0]}
           set -e
-          echo "::endgroup::"
+
+          echo ""
+          echo "=== BUILD EXIT CODE: $BUILD_EXIT ==="
 
           if [ $BUILD_EXIT -ne 0 ]; then
-            echo "::group::Auto-Repair Attempt"
-            echo "Build failed, applying auto-repairs..."
+            echo ""
+            echo "=== BUILD FAILED - FULL ERROR LOG ==="
+            echo "============================================"
+            cat build_output.log
+            echo "============================================"
 
-            if grep -qE "Could not initialize class org.codehaus.groovy|Unsupported class file" build_output.log; then
-              echo "[Repair 1] Switching to JDK 11..."
+            echo ""
+            echo "=== CHECKING KNOWN ERRORS ==="
+
+            # Error: IconData final class (font_awesome)
+            if grep -q "IconData.*final class" build_output.log; then
+              echo "[KNOWN ERROR] font_awesome_flutter incompatible!"
+              echo "Attempting: force cache clean + reinstall..."
+              flutter pub cache repair || true
+              rm -rf ~/.pub-cache/hosted/pub.dev/font_awesome_flutter-* 2>/dev/null || true
+              flutter pub get || true
+
+              echo "Rebuilding..."
+              set +e
+              flutter build apk $BUILD_FLAG --no-tree-shake-icons --android-skip-build-dependency-validation 2>&1 | tee build_output_retry.log
+              RETRY_EXIT=${PIPESTATUS[0]}
+              set -e
+
+              if [ $RETRY_EXIT -eq 0 ]; then
+                echo "Build succeeded on retry!"
+                exit 0
+              fi
+            fi
+
+            # Error: Groovy
+            if grep -qE "Could not initialize class org.codehaus.groovy" build_output.log; then
+              echo "[KNOWN ERROR] Groovy/Java compat!"
               export JAVA_HOME="$JAVA_HOME_11_X64"
               export PATH="$JAVA_HOME/bin:$PATH"
             fi
 
+            # Error: Gradle version
             if grep -qE "Gradle version.*lower than|minimum supported version" build_output.log; then
-              echo "[Repair 2] Force upgrade Gradle to 8.14..."
+              echo "[KNOWN ERROR] Gradle version mismatch!"
               sed -i 's|gradle-[0-9.]*-all.zip|gradle-8.14-all.zip|g' android/gradle/wrapper/gradle-wrapper.properties || true
               sed -i 's|gradle-[0-9.]*-bin.zip|gradle-8.14-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties || true
             fi
 
-            if grep -qE "compileSdkVersion|Namespace not specified|compileSdk" build_output.log; then
-              echo "[Repair 3] Force compileSdk 35..."
-              sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' android/app/build.gradle 2>/dev/null || true
-              sed -i 's/targetSdkVersion .*/targetSdkVersion 35/g' android/app/build.gradle 2>/dev/null || true
-              sed -i 's/compileSdk *= *[0-9]*/compileSdk = 35/g' android/app/build.gradle.kts 2>/dev/null || true
-              sed -i 's/targetSdk *= *[0-9]*/targetSdk = 35/g' android/app/build.gradle.kts 2>/dev/null || true
-            fi
-
-            if grep -qE "Could not find|Could not resolve" build_output.log; then
-              echo "[Repair 4] Adding repositories..."
-              sed -i '/repositories {/a \        google()\n        mavenCentral()\n        maven { url "https://jitpack.io" }' android/build.gradle 2>/dev/null || true
-            fi
-            echo "::endgroup::"
-
-            echo "::group::Retry Build"
+            echo ""
+            echo "=== RETRY BUILD ==="
             set +e
             flutter build apk $BUILD_FLAG --no-tree-shake-icons --android-skip-build-dependency-validation 2>&1 | tee build_output_retry.log
             RETRY_EXIT=${PIPESTATUS[0]}
             set -e
-            echo "::endgroup::"
+
+            echo ""
+            echo "=== RETRY EXIT CODE: $RETRY_EXIT ==="
 
             if [ $RETRY_EXIT -ne 0 ]; then
-              echo "::group::BUILD FAILURE REPORT"
               echo ""
-              echo "=========================================================="
-              echo "            FLUTTER BUILD FAILED"
-              echo "=========================================================="
+              echo "##############################################"
+              echo "#          FLUTTER BUILD FAILED              #"
+              echo "##############################################"
               echo ""
-              echo "--- Last 50 lines of first attempt ---"
-              tail -50 build_output.log
+              echo "===== LAST 60 LINES (retry) ====="
+              tail -60 build_output_retry.log
               echo ""
-              echo "--- Last 50 lines of retry ---"
-              tail -50 build_output_retry.log
+              echo "===== ERROR KEYWORDS ====="
+              grep -E "Error:|error:|FAILURE|Could not|BUILD FAILED|Exception" build_output_retry.log | head -40 || true
               echo ""
-              echo "--- 'What went wrong' section ---"
-              grep -A 20 "What went wrong" build_output_retry.log || true
-              echo ""
-              echo "--- Error summary ---"
-              grep -E "FAILURE|error:|Error:|Could not|Namespace|compileSdk|BUILD FAILED|Gradle version|Exception" build_output_retry.log | head -40 || true
-              echo ""
-              echo "=========================================================="
-              echo "::endgroup::"
+              echo "##############################################"
               exit 1
             fi
           fi
 
-          echo "Flutter build succeeded!"
+          echo ""
+          echo "=== FLUTTER BUILD SUCCESSFUL! ==="
 
-      # ═══════════════════════════════════════════════════════════
-      # STEP 8: BUILD NATIVE ANDROID
-      # ═══════════════════════════════════════════════════════════
       - name: Build Native Android APK
         if: env.FRAMEWORK == 'native-android'
         working-directory: project
@@ -373,35 +362,30 @@ jobs:
             GRADLE_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties || echo "")
             if echo "$GRADLE_URL" | grep -qE "gradle-([456]\.|7\.[0-2])"; then
               export JAVA_HOME="$JAVA_HOME_11_X64"
-              echo "Legacy Gradle detected, using JDK 11"
             else
               export JAVA_HOME="$JAVA_HOME_17_X64"
-              echo "Modern Gradle detected, using JDK 17"
             fi
           else
             export JAVA_HOME="$JAVA_HOME_17_X64"
-            echo "No wrapper found, using JDK 17"
           fi
           export PATH="$JAVA_HOME/bin:$PATH"
 
-          if [ ! -f "./gradlew" ]; then
-            echo "gradlew not found, generating wrapper..."
-            gradle wrapper || true
-            chmod +x ./gradlew || true
-          fi
+          [ ! -f "./gradlew" ] && { gradle wrapper || true; chmod +x ./gradlew || true; }
 
           BUILD_CMD="./gradlew assembleRelease --no-daemon --stacktrace"
           [ "${{ github.event.inputs.build_type }}" = "debug" ] && BUILD_CMD="./gradlew assembleDebug --no-daemon --stacktrace"
 
-          echo "::group::Gradle Build"
           set +e
           $BUILD_CMD 2>&1 | tee build_output.log
           EXIT_CODE=${PIPESTATUS[0]}
           set -e
-          echo "::endgroup::"
+
+          echo "=== GRADLE EXIT CODE: $EXIT_CODE ==="
 
           if [ $EXIT_CODE -ne 0 ]; then
-            echo "Gradle build failed, applying repairs..."
+            echo "=== FULL ERROR LOG ==="
+            cat build_output.log
+            echo "=== RETRYING ==="
             if grep -q "Could not initialize class org.codehaus.groovy" build_output.log; then
               export JAVA_HOME="$JAVA_HOME_11_X64"
               export PATH="$JAVA_HOME/bin:$PATH"
@@ -417,17 +401,13 @@ jobs:
             RETRY_EXIT=${PIPESTATUS[0]}
             set -e
             if [ $RETRY_EXIT -ne 0 ]; then
-              echo "Gradle build failed after retry"
-              tail -50 build_output_retry.log
-              grep -A 20 "What went wrong" build_output_retry.log || true
+              echo "=== GRADLE FAILED AFTER RETRY ==="
+              tail -60 build_output_retry.log
               exit 1
             fi
           fi
 
-      # ═══════════════════════════════════════════════════════════
-      # STEP 9: UPLOAD FAILURE LOGS
-      # ═══════════════════════════════════════════════════════════
-      - name: Upload Failure Logs
+      - name: Upload Logs on Failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -435,78 +415,35 @@ jobs:
           path: |
             project/build_output.log
             project/build_output_retry.log
+            project/pubget.log
           retention-days: 7
           if-no-files-found: ignore
 
-      # ═══════════════════════════════════════════════════════════
-      # STEP 10: PRINT ERROR SUMMARY
-      # ═══════════════════════════════════════════════════════════
-      - name: Print Failure Summary
-        if: failure()
-        run: |
-          echo ""
-          echo "=========================================================="
-          echo "                 BUILD FAILURE SUMMARY"
-          echo "=========================================================="
-          echo ""
-          if [ -f "project/build_output.log" ]; then
-            echo "--- First attempt error keywords ---"
-            grep -E "FAILURE|error:|Error:|Could not|BUILD FAILED|Gradle version|Exception" project/build_output.log | head -20 || true
-          fi
-          if [ -f "project/build_output_retry.log" ]; then
-            echo ""
-            echo "--- Retry attempt last 40 lines ---"
-            tail -40 project/build_output_retry.log
-            echo ""
-            echo "--- What went wrong ---"
-            grep -A 15 "What went wrong" project/build_output_retry.log || true
-          fi
-          echo ""
-          echo "=========================================================="
-          echo "  Download full log from Artifacts tab: build-failure-log"
-          echo "=========================================================="
-
-      # ═══════════════════════════════════════════════════════════
-      # STEP 11: FIND APK
-      # ═══════════════════════════════════════════════════════════
-      - name: Find APK File
+      - name: Find APK
         if: success()
         id: find_apk
         run: |
-          echo "::group::APK Discovery"
-          echo "Searching for APK files..."
+          echo "Searching for APK..."
           find project -type f -name "*.apk" 2>/dev/null | head -20 || echo "No APK found"
-          echo ""
-          echo "Checking common build output locations..."
-          ls -la project/build/app/outputs/flutter-apk/ 2>/dev/null || echo "  flutter-apk folder not present"
-          ls -la project/build/app/outputs/apk/ 2>/dev/null || echo "  apk folder not present"
-          ls -la project/app/build/outputs/apk/ 2>/dev/null || echo "  native apk folder not present"
-          echo ""
 
           APK_FILE=$(find project -type f -name "*.apk" | grep -v "androidTest" | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "ERROR: APK file not found!"
-            echo "=== Last 50 lines of build log ==="
-            tail -50 project/build_output.log 2>/dev/null || echo "No build log"
+            echo "ERROR: APK not found!"
+            tail -50 project/build_output.log 2>/dev/null || true
             exit 1
           fi
 
           APK_FILE=$(echo "$APK_FILE" | sed 's|^\./||')
           APK_SIZE=$(du -h "$APK_FILE" | cut -f1)
-          APK_BYTES=$(stat -c %s "$APK_FILE")
+          APK_SHA=$(sha256sum "$APK_FILE" | cut -d ' ' -f1)
 
           echo "APK_PATH=$APK_FILE" >> $GITHUB_ENV
           echo "APK_NAME=$(basename $APK_FILE)" >> $GITHUB_ENV
           echo "APK_SIZE=$APK_SIZE" >> $GITHUB_ENV
-          echo "APK_BYTES=$APK_BYTES" >> $GITHUB_ENV
-          echo "APK_SHA=$(sha256sum $APK_FILE | cut -d ' ' -f1)" >> $GITHUB_ENV
+          echo "APK_SHA=$APK_SHA" >> $GITHUB_ENV
 
           echo "APK found: $APK_FILE ($APK_SIZE)"
-          echo "::endgroup::"
 
-      # ═══════════════════════════════════════════════════════════
-      # STEP 12: UPLOAD APK ARTIFACT
-      # ═══════════════════════════════════════════════════════════
       - name: Upload APK Artifact
         if: success()
         uses: actions/upload-artifact@v4
@@ -516,79 +453,38 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-      # ═══════════════════════════════════════════════════════════
-      # STEP 13: FINAL SUMMARY
-      # ═══════════════════════════════════════════════════════════
       - name: Final Summary
-        if: success()
+        if: always()
         run: |
           echo ""
-          echo "=========================================================="
-          echo "                 BUILD SUCCESSFUL"
-          echo "=========================================================="
-          echo "  File    : ${{ env.APK_NAME }}"
-          echo "  Size    : ${{ env.APK_SIZE }}"
-          echo "  Path    : ${{ env.APK_PATH }}"
-          echo "  SHA-256 : ${{ env.APK_SHA }}"
-          echo "  Done at : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "=========================================================="
+          echo "##############################################"
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "#          BUILD SUCCESSFUL                 #"
+            echo "##############################################"
+            echo "File    : ${{ env.APK_NAME }}"
+            echo "Size    : ${{ env.APK_SIZE }}"
+            echo "SHA-256 : ${{ env.APK_SHA }}"
+          else
+            echo "#          BUILD FAILED                     #"
+            echo "##############################################"
+            echo "Check logs above for error details"
+            echo "Download 'build-failure-log' artifact for full log"
+          fi
+          echo "##############################################"
 
-      # ═══════════════════════════════════════════════════════════
-      # STEP 14: JOB SUMMARY (Markdown)
-      # ═══════════════════════════════════════════════════════════
-      - name: Write Job Summary
+      - name: Job Summary
         if: always()
         run: |
           if [ "${{ job.status }}" = "success" ]; then
-            cat >> $GITHUB_STEP_SUMMARY <<'EOF'
-          # ✅ Build Successful
-
-          ## 📦 APK Information
-
-          | Field | Value |
-          |-------|-------|
-          | **File Name** | `APK_NAME_PLACEHOLDER` |
-          | **Size** | `APK_SIZE_PLACEHOLDER` |
-          | **SHA-256** | `APK_SHA_PLACEHOLDER` |
-          | **Source URL** | `SOURCE_URL_PLACEHOLDER` |
-          | **Build Type** | `BUILD_TYPE_PLACEHOLDER` |
-
-          ## 🎯 Download
-          Go to the **Artifacts** section below and download `apk-build-output`.
-
-          ---
-          *Built with Web2APK Pro Builder*
-          EOF
-            sed -i "s|APK_NAME_PLACEHOLDER|${{ env.APK_NAME }}|g" $GITHUB_STEP_SUMMARY
-            sed -i "s|APK_SIZE_PLACEHOLDER|${{ env.APK_SIZE }}|g" $GITHUB_STEP_SUMMARY
-            sed -i "s|APK_SHA_PLACEHOLDER|${{ env.APK_SHA }}|g" $GITHUB_STEP_SUMMARY
-            sed -i "s|SOURCE_URL_PLACEHOLDER|${{ github.event.inputs.source_url }}|g" $GITHUB_STEP_SUMMARY
-            sed -i "s|BUILD_TYPE_PLACEHOLDER|${{ github.event.inputs.build_type }}|g" $GITHUB_STEP_SUMMARY
+            echo "# ✅ Build Successful" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| File | \`${{ env.APK_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Size | \`${{ env.APK_SIZE }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| SHA-256 | \`${{ env.APK_SHA }}\` |" >> $GITHUB_STEP_SUMMARY
           else
-            cat >> $GITHUB_STEP_SUMMARY <<'EOF'
-          # ❌ Build Failed
-
-          ## 🔍 Troubleshooting
-
-          1. Check the **step logs** above for detailed error messages
-          2. Download `build-failure-log` from **Artifacts** section
-          3. Common issues:
-             - Gradle version mismatch → check `gradle-wrapper.properties`
-             - Missing `namespace` in `build.gradle.kts`
-             - Dependency conflicts in `pubspec.yaml`
-
-          ## 📋 Build Inputs
-
-          | Field | Value |
-          |-------|-------|
-          | Source Type | `SOURCE_TYPE` |
-          | Source URL | `SOURCE_URL` |
-          | Build Type | `BUILD_TYPE` |
-
-          ---
-          *Built with Web2APK Pro Builder*
-          EOF
-            sed -i "s|SOURCE_TYPE|${{ github.event.inputs.source_type }}|g" $GITHUB_STEP_SUMMARY
-            sed -i "s|SOURCE_URL|${{ github.event.inputs.source_url }}|g" $GITHUB_STEP_SUMMARY
-            sed -i "s|BUILD_TYPE|${{ github.event.inputs.build_type }}|g" $GITHUB_STEP_SUMMARY
+            echo "# ❌ Build Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Check logs above for details." >> $GITHUB_STEP_SUMMARY
           fi
