@@ -43,6 +43,9 @@ jobs:
     timeout-minutes: 45
 
     steps:
+      # ═══════════════════════════════════════════════════════════
+      # STEP 1: DOWNLOAD & EXTRACT PROJECT
+      # ═══════════════════════════════════════════════════════════
       - name: Setup Workspace & Extract Project
         run: |
           mkdir -p project
@@ -68,7 +71,7 @@ jobs:
             rm -f project.zip
 
             SUBDIRS=(*/)
-            if [ ${#SUBDIRS[@]} -eq 1 ] && [ -d "${SUBDIRS[0]}" ] && [ ! -f "pubspec.yaml" ] && [ ! -f "build.gradle" ] && [ ! -f "settings.gradle" ] && [ ! -f "build.gradle.kts" ]; then
+            if [ ${#SUBDIRS[@]} -eq 1 ] && [ -d "${SUBDIRS[0]}" ] && [ ! -f "pubspec.yaml" ] && [ ! -f "build.gradle" ] && [ ! -f "build.gradle.kts" ] && [ ! -f "settings.gradle" ] && [ ! -f "settings.gradle.kts" ]; then
               echo "🔄 Flattening: ${SUBDIRS[0]}"
               mv ${SUBDIRS[0]}* . 2>/dev/null || true
               mv ${SUBDIRS[0]}.* . 2>/dev/null || true
@@ -79,6 +82,9 @@ jobs:
           fi
           ls -la
 
+      # ═══════════════════════════════════════════════════════════
+      # STEP 2: DETECT FRAMEWORK
+      # ═══════════════════════════════════════════════════════════
       - name: Detect Framework
         id: detect
         working-directory: project
@@ -94,6 +100,9 @@ jobs:
             exit 1
           fi
 
+      # ═══════════════════════════════════════════════════════════
+      # STEP 3: SETUP JDK
+      # ═══════════════════════════════════════════════════════════
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
@@ -110,6 +119,9 @@ jobs:
         run: |
           yes | sdkmanager --licenses 2>/dev/null || yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
 
+      # ═══════════════════════════════════════════════════════════
+      # STEP 4: PRE-BUILD FIX
+      # ═══════════════════════════════════════════════════════════
       - name: Pre-Build Auto-Repair
         working-directory: project
         run: |
@@ -132,8 +144,11 @@ jobs:
 
           [ -f "./gradlew" ] && chmod +x ./gradlew
           [ -f "android/gradlew" ] && chmod +x android/gradlew
-          echo "✅ Done!"
+          echo "✅ Pre-Build Done"
 
+      # ═══════════════════════════════════════════════════════════
+      # STEP 5: SETUP FLUTTER
+      # ═══════════════════════════════════════════════════════════
       - name: Setup Flutter
         if: env.FRAMEWORK == 'flutter'
         uses: subosito/flutter-action@v2
@@ -142,7 +157,7 @@ jobs:
           cache: true
 
       # ═══════════════════════════════════════════════════════════
-      # ✅ FIX UTAMA: Upgrade Gradle wrapper ke 8.14+ 
+      # STEP 6: FIX GRADLE VERSION (FIX UTAMA)
       # ═══════════════════════════════════════════════════════════
       - name: Pre-Fix Gradle Version
         if: env.FRAMEWORK == 'flutter'
@@ -174,15 +189,11 @@ EOF
           echo "🔧 Patch build.gradle.kts (Kotlin DSL)..."
           APP_KTS="android/app/build.gradle.kts"
           if [ -f "$APP_KTS" ]; then
-            echo "=== Sebelum patch ==="
-            cat "$APP_KTS" | head -40
-            # Force SDK versions
             sed -i 's/compileSdk *= *[0-9]*/compileSdk = 35/g' "$APP_KTS" || true
             sed -i 's/targetSdk *= *[0-9]*/targetSdk = 35/g' "$APP_KTS" || true
             sed -i 's/minSdk *= *[0-9]*/minSdk = 21/g' "$APP_KTS" || true
           fi
 
-          # Kalau versi Groovy juga
           APP_GRADLE="android/app/build.gradle"
           if [ -f "$APP_GRADLE" ]; then
             sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' "$APP_GRADLE" || true
@@ -190,7 +201,6 @@ EOF
             sed -i 's/minSdkVersion .*/minSdkVersion 21/g' "$APP_GRADLE" || true
           fi
 
-          echo "🔧 Force JDK 17..."
           export JAVA_HOME="$JAVA_HOME_17_X64"
           export PATH="$JAVA_HOME/bin:$PATH"
 
@@ -199,6 +209,9 @@ EOF
 
           echo "✅ Pre-fix done!"
 
+      # ═══════════════════════════════════════════════════════════
+      # STEP 7: BUILD FLUTTER APK
+      # ═══════════════════════════════════════════════════════════
       - name: Build Flutter APK
         if: env.FRAMEWORK == 'flutter'
         working-directory: project
@@ -226,22 +239,19 @@ EOF
           if [ $BUILD_EXIT -ne 0 ]; then
             echo "⚠️ Build gagal, mencoba auto-repair..."
 
-            # Auto-repair #1: Groovy/Java compatibility
             if grep -qE "Could not initialize class org.codehaus.groovy|Unsupported class file" build_output.log; then
               echo "🔧 [Fix 1] Beralih ke JDK 11..."
               export JAVA_HOME="$JAVA_HOME_11_X64"
               export PATH="$JAVA_HOME/bin:$PATH"
             fi
 
-            # Auto-repair #2: Gradle version mismatch
             if grep -qE "Gradle version.*lower than|minimum supported version" build_output.log; then
               echo "🔧 [Fix 2] Force upgrade Gradle ke 8.14..."
               sed -i 's|gradle-[0-9.]*-all.zip|gradle-8.14-all.zip|g' android/gradle/wrapper/gradle-wrapper.properties || true
               sed -i 's|gradle-[0-9.]*-bin.zip|gradle-8.14-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties || true
             fi
 
-            # Auto-repair #3: SDK version
-            if grep -qE "compileSdkVersion|Namespace not specified|Android SDK not found|compileSdk" build_output.log; then
+            if grep -qE "compileSdkVersion|Namespace not specified|compileSdk" build_output.log; then
               echo "🔧 [Fix 3] Force compileSdk 35 & namespace..."
               sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' android/app/build.gradle 2>/dev/null || true
               sed -i 's/targetSdkVersion .*/targetSdkVersion 35/g' android/app/build.gradle 2>/dev/null || true
@@ -249,9 +259,8 @@ EOF
               sed -i 's/targetSdk *= *[0-9]*/targetSdk = 35/g' android/app/build.gradle.kts 2>/dev/null || true
             fi
 
-            # Auto-repair #4: Repository
             if grep -qE "Could not find|Could not resolve" build_output.log; then
-              echo "🔧 [Fix 4] Menambahkan repository Google + MavenCentral..."
+              echo "🔧 [Fix 4] Menambahkan repository..."
               sed -i '/repositories {/a \        google()\n        mavenCentral()\n        maven { url "https://jitpack.io" }' android/build.gradle 2>/dev/null || true
             fi
 
@@ -267,20 +276,26 @@ EOF
               echo "❌ FLUTTER BUILD GAGAL TOTAL"
               echo "════════════════════════════════════════"
               echo ""
-              echo "=== 30 baris terakhir dari build_output.log ==="
-              tail -30 build_output.log
+              echo "=== 50 baris terakhir dari build_output.log ==="
+              tail -50 build_output.log
               echo ""
-              echo "=== What went wrong (dari retry) ==="
-              grep -A 20 "What went wrong" build_output_retry.log || tail -50 build_output_retry.log
+              echo "=== 50 baris terakhir dari retry ==="
+              tail -50 build_output_retry.log
               echo ""
-              echo "=== Full error context ==="
-              grep -E "FAILURE|error:|Could not|Namespace|compileSdk|BUILD FAILED|Gradle version" build_output_retry.log | head -30 || true
+              echo "=== What went wrong ==="
+              grep -A 20 "What went wrong" build_output_retry.log || true
+              echo ""
+              echo "=== Error lines ==="
+              grep -E "FAILURE|error:|Error:|Could not|Namespace|compileSdk|BUILD FAILED|Gradle version|Exception" build_output_retry.log | head -40 || true
               exit 1
             fi
           fi
 
           echo "✅ Flutter build sukses!"
 
+      # ═══════════════════════════════════════════════════════════
+      # STEP 8: BUILD NATIVE ANDROID
+      # ═══════════════════════════════════════════════════════════
       - name: Build Native Android APK
         if: env.FRAMEWORK == 'native-android'
         working-directory: project
@@ -325,12 +340,16 @@ EOF
             set -e
             if [ $RETRY_EXIT -ne 0 ]; then
               echo "❌ Gradle build gagal total"
-              grep -A 20 "What went wrong" build_output_retry.log || tail -50 build_output_retry.log
+              tail -50 build_output_retry.log
+              grep -A 20 "What went wrong" build_output_retry.log || true
               exit 1
             fi
           fi
 
-      - name: Upload Build Log on Failure
+      # ═══════════════════════════════════════════════════════════
+      # STEP 9: UPLOAD LOG — SELALU (kalau gagal)
+      # ═══════════════════════════════════════════════════════════
+      - name: Upload Build Logs (Always on Failure)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -341,7 +360,43 @@ EOF
           retention-days: 7
           if-no-files-found: ignore
 
+      # ═══════════════════════════════════════════════════════════
+      # STEP 10: PRINT ERROR SUMMARY (ke log Actions)
+      # ═══════════════════════════════════════════════════════════
+      - name: Print Error Summary
+        if: failure()
+        run: |
+          echo ""
+          echo "╔════════════════════════════════════════════════════════╗"
+          echo "║         ❌ BUILD GAGAL — ERROR SUMMARY                 ║"
+          echo "╚════════════════════════════════════════════════════════╝"
+          echo ""
+          if [ -f "project/build_output.log" ]; then
+            echo "━━━ Last 30 lines: build_output.log ━━━"
+            tail -30 project/build_output.log
+            echo ""
+            echo "━━━ Error keywords ━━━"
+            grep -E "FAILURE|error:|Error:|Could not|Namespace|compileSdk|BUILD FAILED|Gradle version|Exception" project/build_output.log | head -20 || true
+          fi
+          if [ -f "project/build_output_retry.log" ]; then
+            echo ""
+            echo "━━━ Last 30 lines: build_output_retry.log ━━━"
+            tail -30 project/build_output_retry.log
+            echo ""
+            echo "━━━ What went wrong ━━━"
+            grep -A 15 "What went wrong" project/build_output_retry.log || true
+          fi
+          echo ""
+          echo "╔════════════════════════════════════════════════════════╗"
+          echo "║       📥 Download full log dari tab 'Artifacts'         ║"
+          echo "║         → build-failure-log                             ║"
+          echo "╚════════════════════════════════════════════════════════╝"
+
+      # ═══════════════════════════════════════════════════════════
+      # STEP 11: FIND APK
+      # ═══════════════════════════════════════════════════════════
       - name: Find APK File
+        if: success()
         id: find_apk
         run: |
           echo "🔍 Mencari APK..."
@@ -364,7 +419,11 @@ EOF
           echo "APK_SIZE=$(du -h $APK_FILE | cut -f1)" >> $GITHUB_ENV
           echo "✅ APK found: $APK_FILE"
 
+      # ═══════════════════════════════════════════════════════════
+      # STEP 12: UPLOAD APK ARTIFACT
+      # ═══════════════════════════════════════════════════════════
       - name: Upload APK Artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: apk-build-output
@@ -372,6 +431,9 @@ EOF
           retention-days: 1
           if-no-files-found: error
 
+      # ═══════════════════════════════════════════════════════════
+      # STEP 13: BUILD SUMMARY
+      # ═══════════════════════════════════════════════════════════
       - name: Build Summary
         if: success()
         run: |
