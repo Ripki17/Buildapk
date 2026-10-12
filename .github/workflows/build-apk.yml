@@ -1,4 +1,4 @@
-name: Build Native Android & Flutter APK
+ name: Build Native Android & Flutter APK
 
 on:
   workflow_dispatch:
