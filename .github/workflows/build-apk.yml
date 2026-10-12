@@ -140,6 +140,10 @@ jobs:
           channel: ${{ github.event.inputs.flutter_version || 'stable' }}
           cache: true
 
+      - name: Show Flutter Info
+        if: env.FRAMEWORK == 'flutter'
+        run: flutter doctor -v
+
       - name: Build Flutter APK
         if: env.FRAMEWORK == 'flutter'
         working-directory: project
@@ -147,7 +151,9 @@ jobs:
           export JAVA_HOME="$JAVA_HOME_17_X64"
           export PATH="$JAVA_HOME/bin:$PATH"
 
+          echo "⚡ [Flutter] Step 1: Resolving dependencies..."
           flutter pub get || {
+            echo "⚠️ pub get gagal, coba auto-fix..."
             rm -f pubspec.lock
             flutter clean || true
             flutter pub get --no-example || flutter pub upgrade --major-versions
@@ -156,16 +162,60 @@ jobs:
           BUILD_FLAG="--release"
           [ "${{ github.event.inputs.build_type }}" = "debug" ] && BUILD_FLAG="--debug"
 
-          flutter build apk $BUILD_FLAG --no-tree-shake-icons 2>&1 | tee build_output.log || {
-            if grep -q "Could not initialize class org.codehaus.groovy" build_output.log || grep -q "Unsupported class file" build_output.log; then
+          echo "💻 [Flutter] Step 2: Building APK ($BUILD_FLAG)..."
+          set +e
+          flutter build apk $BUILD_FLAG --no-tree-shake-icons 2>&1 | tee build_output.log
+          BUILD_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          if [ $BUILD_EXIT -ne 0 ]; then
+            echo "⚠️ Build gagal, mencoba auto-repair..."
+
+            # Auto-repair #1: Groovy/Java compatibility
+            if grep -qE "Could not initialize class org.codehaus.groovy|Unsupported class file" build_output.log; then
+              echo "🔧 [Fix 1] Beralih ke JDK 11..."
               export JAVA_HOME="$JAVA_HOME_11_X64"
               export PATH="$JAVA_HOME/bin:$PATH"
             fi
-            if grep -q "compileSdkVersion" build_output.log || grep -q "Namespace not specified" build_output.log; then
+
+            # Auto-repair #2: SDK version
+            if grep -qE "compileSdkVersion|Namespace not specified|Android SDK not found" build_output.log; then
+              echo "🔧 [Fix 2] Force compileSdk 34 & namespace..."
               sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle 2>/dev/null || true
+              sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle 2>/dev/null || true
             fi
-            flutter build apk $BUILD_FLAG --no-tree-shake-icons 2>&1 | tee build_output.log
-          }
+
+            # Auto-repair #3: Gradle plugin version
+            if grep -qE "Could not find|Could not resolve" build_output.log; then
+              echo "🔧 [Fix 3] Menambahkan repository Google + MavenCentral..."
+              sed -i '/repositories {/a \        google()\n        mavenCentral()\n        maven { url "https://jitpack.io" }' android/build.gradle 2>/dev/null || true
+            fi
+
+            echo "🚀 [Retry] Coba build ulang..."
+            set +e
+            flutter build apk $BUILD_FLAG --no-tree-shake-icons 2>&1 | tee build_output_retry.log
+            RETRY_EXIT=${PIPESTATUS[0]}
+            set -e
+
+            if [ $RETRY_EXIT -ne 0 ]; then
+              echo ""
+              echo "════════════════════════════════════════"
+              echo "❌ FLUTTER BUILD GAGAL TOTAL"
+              echo "════════════════════════════════════════"
+              echo ""
+              echo "=== 30 baris terakhir dari build_output.log ==="
+              tail -30 build_output.log
+              echo ""
+              echo "=== What went wrong (dari retry) ==="
+              grep -A 20 "What went wrong" build_output_retry.log || tail -50 build_output_retry.log
+              echo ""
+              echo "=== Full error context ==="
+              grep -E "FAILURE|error:|Could not|Namespace|compileSdk|BUILD FAILED" build_output_retry.log | head -30 || true
+              exit 1
+            fi
+          fi
+
+          echo "✅ Flutter build sukses!"
 
       - name: Build Native Android APK
         if: env.FRAMEWORK == 'native-android'
@@ -188,8 +238,13 @@ jobs:
           BUILD_CMD="./gradlew assembleRelease --no-daemon --stacktrace"
           [ "${{ github.event.inputs.build_type }}" = "debug" ] && BUILD_CMD="./gradlew assembleDebug --no-daemon --stacktrace"
 
-          $BUILD_CMD 2>&1 | tee build_output.log || {
-            EXIT_CODE=$?
+          set +e
+          $BUILD_CMD 2>&1 | tee build_output.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          set -e
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "⚠️ Gradle build gagal, coba repair..."
             if grep -q "Could not initialize class org.codehaus.groovy" build_output.log; then
               export JAVA_HOME="$JAVA_HOME_11_X64"
               export PATH="$JAVA_HOME/bin:$PATH"
@@ -200,25 +255,55 @@ jobs:
             if grep -q "Could not resolve all files" build_output.log; then
               sed -i '/repositories {/a \        google()\n        mavenCentral()\n        maven { url "https://jitpack.io" }' build.gradle 2>/dev/null || true
             fi
-            $BUILD_CMD 2>&1 | tee build_output.log || exit $EXIT_CODE
-          }
+            set +e
+            $BUILD_CMD 2>&1 | tee build_output_retry.log
+            RETRY_EXIT=${PIPESTATUS[0]}
+            set -e
+            if [ $RETRY_EXIT -ne 0 ]; then
+              echo "❌ Gradle build gagal total"
+              grep -A 20 "What went wrong" build_output_retry.log || tail -50 build_output_retry.log
+              exit 1
+            fi
+          fi
 
-      # ═══════════════════════════════════════════════════════════
-      # ✅ FIXED: Cari APK dari ROOT repo & bersihkan path dari ./
-      # ═══════════════════════════════════════════════════════════
+      # ═══════════════════════════════════════════════
+      # DEBUG: Upload build log kalau gagal
+      # ═══════════════════════════════════════════════
+      - name: Upload Build Log on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-failure-log
+          path: |
+            project/build_output.log
+            project/build_output_retry.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # ═══════════════════════════════════════════════
+      # FIND APK — Fix path
+      # ═══════════════════════════════════════════════
       - name: Find APK File
         id: find_apk
         run: |
+          echo "🔍 Mencari APK di folder project..."
+          find project -type f -name "*.apk" 2>/dev/null | head -20 || echo "Tidak ada"
+          echo ""
+          echo "📁 Struktur build folder:"
+          ls -la project/build/app/outputs/ 2>/dev/null || echo "project/build/app/outputs/ tidak ada"
+          ls -la project/build/app/outputs/flutter-apk/ 2>/dev/null || echo "flutter-apk folder tidak ada"
+          ls -la project/build/app/outputs/apk/ 2>/dev/null || echo "apk folder tidak ada"
+          echo ""
+
           APK_FILE=$(find project -type f -name "*.apk" | grep -v "androidTest" | head -n 1)
           if [ -z "$APK_FILE" ]; then
             echo "❌ ERROR: File APK tidak ditemukan!"
-            echo "📁 Isi folder project:"
-            ls -la project/ 2>/dev/null || echo "project/ tidak ada!"
-            echo "🔍 Semua APK:"
-            find project -name "*.apk" 2>/dev/null || echo "Tidak ada .apk"
+            echo ""
+            echo "=== ISI build_output.log (50 baris terakhir) ==="
+            tail -50 project/build_output.log 2>/dev/null || echo "Log tidak ada"
             exit 1
           fi
-          # Bersihkan path dari "./" di awal (jaga-jaga)
+
           APK_FILE=$(echo "$APK_FILE" | sed 's|^\./||')
           echo "APK_PATH=$APK_FILE" >> $GITHUB_ENV
           echo "APK_NAME=$(basename $APK_FILE)" >> $GITHUB_ENV
@@ -234,6 +319,7 @@ jobs:
           if-no-files-found: error
 
       - name: Build Summary
+        if: success()
         run: |
           echo "✅ Build selesai!"
           echo "📱 File: ${{ env.APK_NAME }}"
