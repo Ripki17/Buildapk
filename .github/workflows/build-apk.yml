@@ -42,52 +42,55 @@ concurrency:
 
 jobs:
   build:
-    name: Auto-Repair APK Builder
+    name: 🚀 AI-Powered APK Builder
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       # ═══════════════════════════════════════════════════════════
       # BANNER & BUILD INFO
       # ═══════════════════════════════════════════════════════════
-      - name: Banner & Build Info
+      - name: 🎨 Banner & Build Info
         run: |
-          echo "╔════════════════════════════════════════════════════════════╗"
-          echo "║                                                            ║"
-          echo "║      ██╗    ██╗███████╗██████╗ ██████╗                     ║"
-          echo "║      ██║    ██║██╔════╝██╔══██╗╚════██╗                    ║"
-          echo "║      ██║ █╗ ██║█████╗  ██████╔╝ █████╔╝                    ║"
-          echo "║      ██║███╗██║██╔══╝  ██╔══██╗ ╚═══██╗                    ║"
-          echo "║      ╚███╔███╔╝███████╗██████╔╝██████╔╝                    ║"
-          echo "║       ╚══╝╚══╝ ╚══════╝╚═════╝ ╚═════╝                     ║"
-          echo "║                                                            ║"
-          echo "║            A P K   B U I L D E R   P R O                   ║"
-          echo "║                                                            ║"
-          echo "╚════════════════════════════════════════════════════════════╝"
           echo ""
-          echo "┌─────────────────────────────────────────────────────────────┐"
-          echo "│  📋 BUILD INFORMATION                                        │"
-          echo "├─────────────────────────────────────────────────────────────┤"
-          echo "│  🎯 Source Type : ${{ github.event.inputs.source_type }}"
-          echo "│  🔗 Source URL  : ${{ github.event.inputs.source_url }}"
-          echo "│  🌿 Branch      : ${{ github.event.inputs.branch }}"
-          echo "│  🔧 Build Type  : ${{ github.event.inputs.build_type }}"
-          echo "│  💙 Flutter     : ${{ github.event.inputs.flutter_version }}"
-          echo "│  🏷️  Release Tag : ${{ github.event.inputs.release_tag }}"
-          echo "│  💬 Chat ID     : ${{ github.event.inputs.chat_id }}"
-          echo "│  🆔 Run ID      : ${{ github.run_id }}"
-          echo "│  👤 Actor       : ${{ github.actor }}"
-          echo "│  ⏰ Started     : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "└─────────────────────────────────────────────────────────────┘"
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║                                                                      ║"
+          echo "║   ██╗    ██╗███████╗██████╗ ██████╗      █████╗ ██████╗ ██╗  ██╗     ║"
+          echo "║   ██║    ██║██╔════╝██╔══██╗╚════██╗    ██╔══██╗██╔══██╗██║ ██╔╝     ║"
+          echo "║   ██║ █╗ ██║█████╗  ██████╔╝ █████╔╝    ███████║██████╔╝█████╔╝      ║"
+          echo "║   ██║███╗██║██╔══╝  ██╔══██╗ ╚═══██╗    ██╔══██║██╔═══╝ ██╔═██╗      ║"
+          echo "║   ╚███╔███╔╝███████╗██████╔╝██████╔╝    ██║  ██║██║     ██║  ██╗     ║"
+          echo "║    ╚══╝╚══╝ ╚══════╝╚═════╝ ╚═════╝     ╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝     ║"
+          echo "║                                                                      ║"
+          echo "║      🤖 AI-POWERED AUTO-REPAIR ENGINE  •  CLAUDE 3 HAIKU 🤖          ║"
+          echo "║                                                                      ║"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "┌─────────────────────────────────────────────────────────────────────┐"
+          echo "│  📋 BUILD CONFIGURATION                                             │"
+          echo "├─────────────────────────────────────────────────────────────────────┤"
+          echo "│  🎯 Source Type   : ${{ github.event.inputs.source_type }}"
+          echo "│  🔗 Source URL    : ${{ github.event.inputs.source_url }}"
+          echo "│  🌿 Branch        : ${{ github.event.inputs.branch }}"
+          echo "│  🔧 Build Type    : ${{ github.event.inputs.build_type }}"
+          echo "│  💙 Flutter Ver   : ${{ github.event.inputs.flutter_version }}"
+          echo "│  🏷️  Release Tag   : ${{ github.event.inputs.release_tag }}"
+          echo "│  💬 Chat ID       : ${{ github.event.inputs.chat_id }}"
+          echo "│  🆔 Run ID        : ${{ github.run_id }}"
+          echo "│  👤 Actor         : ${{ github.actor }}"
+          echo "│  ⏰ Started       : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "└─────────────────────────────────────────────────────────────────────┘"
+          echo ""
+          echo "START_TIME_EPOCH=$(date +%s)" >> $GITHUB_ENV
 
       # ═══════════════════════════════════════════════════════════
       # DOWNLOAD & EXTRACT
       # ═══════════════════════════════════════════════════════════
-      - name: Download & Extract Project
+      - name: 📥 Download & Extract Project
         run: |
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-          echo "▓  📥 STEP 1: DOWNLOAD & EXTRACT PROJECT                    ▓"
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║  📥 STEP 1/9 : DOWNLOAD & EXTRACT PROJECT                            ║"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
 
           mkdir -p project
           cd project
@@ -113,7 +116,7 @@ jobs:
 
             SUBDIRS=(*/)
             if [ ${#SUBDIRS[@]} -eq 1 ] && [ -d "${SUBDIRS[0]}" ] && [ ! -f "pubspec.yaml" ] && [ ! -f "build.gradle" ] && [ ! -f "build.gradle.kts" ] && [ ! -f "settings.gradle" ] && [ ! -f "settings.gradle.kts" ]; then
-              echo "🔄 Flattening: ${SUBDIRS[0]}"
+              echo "🔄 Flattening single root directory: ${SUBDIRS[0]}"
               mv ${SUBDIRS[0]}* . 2>/dev/null || true
               mv ${SUBDIRS[0]}.* . 2>/dev/null || true
               rmdir "${SUBDIRS[0]}" 2>/dev/null || true
@@ -124,19 +127,18 @@ jobs:
           fi
 
           echo ""
-          echo "📁 Project structure:"
-          ls -la
-          echo "✅ Project ready"
+          echo "✅ Project extracted successfully"
+          ls -la | head -20
 
       # ═══════════════════════════════════════════════════════════
       # DETECT FRAMEWORK
       # ═══════════════════════════════════════════════════════════
-      - name: Detect Framework
+      - name: 🔍 Detect Framework
         working-directory: project
         run: |
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-          echo "▓  🔍 STEP 2: DETECT FRAMEWORK                              ▓"
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║  🔍 STEP 2/9 : FRAMEWORK DETECTION                                   ║"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
 
           if [ -f "pubspec.yaml" ]; then
             echo "FRAMEWORK=flutter" >> $GITHUB_ENV
@@ -146,14 +148,14 @@ jobs:
             echo "✅ Framework detected: 🤖 NATIVE ANDROID"
           else
             echo "FRAMEWORK=unknown" >> $GITHUB_ENV
-            echo "❌ Framework not detected!"
+            echo "❌ ERROR: Framework not detected!"
             exit 1
           fi
 
       # ═══════════════════════════════════════════════════════════
       # SETUP ENVIRONMENT
       # ═══════════════════════════════════════════════════════════
-      - name: Setup JDK 17 and JDK 11
+      - name: ⚙️ Setup JDK 17 & 11
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -161,20 +163,19 @@ jobs:
             17
             11
 
-      - name: Setup Android SDK 36
+      - name: 🤖 Setup Android SDK 36
         run: |
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-          echo "▓  ⚙️  STEP 3: SETUP ANDROID SDK                            ▓"
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-          echo "📦 Installing Android SDK Platform 36..."
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║  🤖 STEP 3/9 : ANDROID SDK SETUP                                     ║"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
           sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools" > /dev/null 2>&1 || true
-          echo "✅ Android SDK 36 ready"
+          echo "✅ Android SDK 36 installed"
 
-      - name: Pre-Build Environment Patching
+      - name: 🔧 Pre-Build Environment Patching
         working-directory: project
         run: |
-          echo "🔧 Patching environment..."
+          echo "🔧 Patching environment files..."
           if [ -d "android" ]; then
             echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           fi
@@ -195,269 +196,276 @@ jobs:
           [ -f "android/gradlew" ] && chmod +x android/gradlew
           echo "✅ Environment patched"
 
-      - name: Setup Flutter
+      - name: 💙 Setup Flutter
         if: env.FRAMEWORK == 'flutter'
         uses: subosito/flutter-action@v2
         with:
           channel: ${{ github.event.inputs.flutter_version || 'stable' }}
           cache: true
 
-      - name: Show Flutter Version
+      - name: 📊 Show Flutter Version
         if: env.FRAMEWORK == 'flutter'
         run: |
-          echo "💙 Flutter version:"
           flutter --version
+          echo ""
+          echo "✅ Flutter SDK ready"
 
       # ═══════════════════════════════════════════════════════════
-      # 🔥 AUTO-PATCH FONTAWESOME V11
+      # MEGA AUTO-PATCH HUB (6 CATEGORIES)
       # ═══════════════════════════════════════════════════════════
-      - name: Auto-Patch FontAwesome v11
+      - name: 🔥 Auto-Patch Hub (6 Categories)
         if: env.FRAMEWORK == 'flutter'
         working-directory: project
         run: |
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-          echo "▓  🎨 AUTO-PATCH #1: FONTAWESOME V11 COMPATIBILITY         ▓"
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║  🔥 STEP 4/9 : MEGA AUTO-PATCH HUB                                   ║"
+          echo "║  🎯 Auto-fix 6 known breaking changes                                ║"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
+          echo ""
 
           if [ ! -d "lib" ]; then
-            echo "⚠️  No lib folder, skipping"
+            echo "⚠️  No lib folder found, skipping patches"
             exit 0
           fi
 
-          FA_FILES=$(grep -rl "FontAwesomeIcons" lib/ 2>/dev/null | wc -l)
-          echo "📊 Files using FontAwesomeIcons: $FA_FILES"
+          PATCH_TOTAL=0
+          PATCH_APPLIED=0
 
-          if [ "$FA_FILES" -eq 0 ]; then
-            echo "ℹ️  No FontAwesome usage, skipping patch"
-            exit 0
+          # ═══════════════════════════════════════════════════════════
+          # PATCH 1: file_picker v13 — platform + deprecated params
+          # ═══════════════════════════════════════════════════════════
+          echo "┌──────────────────────────────────────────────────────────────────────┐"
+          echo "│  🔧 PATCH 1: file_picker v13 (platform, allowMultiple, withData)     │"
+          echo "└──────────────────────────────────────────────────────────────────────┘"
+
+          BEFORE=$(grep -rn "allowMultiple\|withData\|FilePicker\.platform\|withReadStream\|allowCompression" lib/ 2>/dev/null | wc -l)
+          echo "   📊 Before: $BEFORE deprecated usages"
+
+          if [ "$BEFORE" -gt 0 ]; then
+            find lib -name "*.dart" -type f -exec sed -i -E \
+              -e 's/FilePicker\.platform/FilePicker/g' \
+              -e '/^[[:space:]]*allowMultiple[[:space:]]*:/d' \
+              -e '/^[[:space:]]*withData[[:space:]]*:/d' \
+              -e '/^[[:space:]]*withReadStream[[:space:]]*:/d' \
+              -e '/^[[:space:]]*allowCompression[[:space:]]*:/d' \
+              -e '/^[[:space:]]*compressionQuality[[:space:]]*:/d' \
+              -e '/^[[:space:]]*lockParentWindow[[:space:]]*:/d' \
+              -e '/^[[:space:]]*readSequential[[:space:]]*:/d' \
+              {} \;
+
+            AFTER=$(grep -rn "allowMultiple\|withData\|FilePicker\.platform\|withReadStream" lib/ 2>/dev/null | wc -l)
+            echo "   📊 After : $AFTER deprecated usages"
+            [ "$AFTER" -lt "$BEFORE" ] && PATCH_APPLIED=$((PATCH_APPLIED + 1))
+          else
+            echo "   ✅ Nothing to patch"
           fi
-
+          PATCH_TOTAL=$((PATCH_TOTAL + 1))
           echo ""
-          echo "🔧 [1/3] Converting Icon(FontAwesomeIcons.X) → FaIcon(FontAwesomeIcons.X)..."
-          find lib -name "*.dart" -type f -exec sed -i -E \
-            's/(\bconst\s+)?Icon\(FontAwesomeIcons\./\1FaIcon(FontAwesomeIcons./g' {} \;
-          echo "   ✓ Done"
 
-          echo ""
-          echo "🔧 [2/3] Converting IconData → FaIconData (in FontAwesome files)..."
-          for f in $(grep -rl "FontAwesomeIcons" lib/ 2>/dev/null); do
-            sed -i -E 's/\bIconData\?/FaIconData?/g' "$f"
-            sed -i -E 's/\bIconData\b/FaIconData/g' "$f"
-          done
-          echo "   ✓ Done"
+          # ═══════════════════════════════════════════════════════════
+          # PATCH 2: firebase_database v12 MutableData
+          # ═══════════════════════════════════════════════════════════
+          echo "┌──────────────────────────────────────────────────────────────────────┐"
+          echo "│  🔥 PATCH 2: firebase_database v12 MutableData cast                  │"
+          echo "└──────────────────────────────────────────────────────────────────────┘"
 
-          echo ""
-          echo "🔧 [3/3] Fixing Material ↔ FontAwesome ternary conflicts..."
-          find lib -name "*.dart" -type f -exec sed -i -E \
-            -e 's/Icons\.keyboard_arrow_up/FontAwesomeIcons.chevronUp/g' \
-            -e 's/Icons\.arrow_back/FontAwesomeIcons.arrowLeft/g' \
-            -e 's/Icons\.arrow_forward/FontAwesomeIcons.arrowRight/g' \
-            -e 's/Icons\.keyboard_arrow_down/FontAwesomeIcons.chevronDown/g' \
-            -e 's/Icons\.keyboard_arrow_left/FontAwesomeIcons.chevronLeft/g' \
-            -e 's/Icons\.keyboard_arrow_right/FontAwesomeIcons.chevronRight/g' \
-            -e 's/Icons\.menu/FontAwesomeIcons.bars/g' \
-            -e 's/Icons\.close/FontAwesomeIcons.xmark/g' \
-            -e 's/Icons\.search/FontAwesomeIcons.magnifyingGlass/g' \
-            -e 's/Icons\.settings/FontAwesomeIcons.gear/g' \
-            -e 's/Icons\.home/FontAwesomeIcons.house/g' \
-            -e 's/Icons\.person/FontAwesomeIcons.user/g' \
-            -e 's/Icons\.add/FontAwesomeIcons.plus/g' \
-            -e 's/Icons\.remove/FontAwesomeIcons.minus/g' \
-            -e 's/Icons\.check/FontAwesomeIcons.check/g' \
-            -e 's/Icons\.info/FontAwesomeIcons.circleInfo/g' \
-            -e 's/Icons\.warning/FontAwesomeIcons.triangleExclamation/g' \
-            -e 's/Icons\.error/FontAwesomeIcons.circleExclamation/g' \
-            -e 's/Icons\.refresh/FontAwesomeIcons.arrowsRotate/g' \
-            -e 's/Icons\.delete/FontAwesomeIcons.trash/g' \
-            -e 's/Icons\.edit/FontAwesomeIcons.penToSquare/g' \
-            -e 's/Icons\.save/FontAwesomeIcons.floppyDisk/g' \
-            -e 's/Icons\.send/FontAwesomeIcons.paperPlane/g' \
-            -e 's/Icons\.download/FontAwesomeIcons.download/g' \
-            -e 's/Icons\.upload/FontAwesomeIcons.upload/g' \
-            -e 's/Icons\.share/FontAwesomeIcons.share/g' \
-            -e 's/Icons\.lock/FontAwesomeIcons.lock/g' \
-            -e 's/Icons\.visibility/FontAwesomeIcons.eye/g' \
-            -e 's/Icons\.visibility_off/FontAwesomeIcons.eyeSlash/g' \
-            -e 's/Icons\.play_arrow/FontAwesomeIcons.play/g' \
-            -e 's/Icons\.pause/FontAwesomeIcons.pause/g' \
-            -e 's/Icons\.stop/FontAwesomeIcons.stop/g' \
-            -e 's/Icons\.star/FontAwesomeIcons.star/g' \
-            -e 's/Icons\.favorite/FontAwesomeIcons.heart/g' \
-            -e 's/Icons\.notifications/FontAwesomeIcons.bell/g' \
-            -e 's/Icons\.mail/FontAwesomeIcons.envelope/g' \
-            -e 's/Icons\.phone/FontAwesomeIcons.phone/g' \
-            -e 's/Icons\.camera_alt/FontAwesomeIcons.camera/g' \
-            -e 's/Icons\.image/FontAwesomeIcons.image/g' \
-            -e 's/Icons\.folder/FontAwesomeIcons.folder/g' \
-            -e 's/Icons\.content_copy/FontAwesomeIcons.copy/g' \
-            -e 's/Icons\.more_vert/FontAwesomeIcons.ellipsisVertical/g' \
-            -e 's/Icons\.more_horiz/FontAwesomeIcons.ellipsis/g' \
-            -e 's/Icons\.logout/FontAwesomeIcons.rightFromBracket/g' \
-            -e 's/Icons\.login/FontAwesomeIcons.rightToBracket/g' \
-            -e 's/Icons\.person_add/FontAwesomeIcons.userPlus/g' \
-            -e 's/Icons\.person_remove/FontAwesomeIcons.userMinus/g' \
-            -e 's/Icons\.people/FontAwesomeIcons.users/g' \
-            -e 's/Icons\.account_circle/FontAwesomeIcons.circleUser/g' \
-            -e 's/Icons\.dashboard/FontAwesomeIcons.gauge/g' \
-            -e 's/Icons\.bar_chart/FontAwesomeIcons.chartBar/g' \
-            -e 's/Icons\.list/FontAwesomeIcons.list/g' \
-            -e 's/Icons\.calendar_today/FontAwesomeIcons.calendar/g' \
-            -e 's/Icons\.schedule/FontAwesomeIcons.clock/g' \
-            -e 's/Icons\.location_on/FontAwesomeIcons.locationDot/g' \
-            -e 's/Icons\.map/FontAwesomeIcons.map/g' \
-            -e 's/Icons\.cloud/FontAwesomeIcons.cloud/g' \
-            -e 's/Icons\.wifi/FontAwesomeIcons.wifi/g' \
-            -e 's/Icons\.bug_report/FontAwesomeIcons.bug/g' \
-            -e 's/Icons\.code/FontAwesomeIcons.code/g' \
-            -e 's/Icons\.terminal/FontAwesomeIcons.terminal/g' \
-            -e 's/Icons\.security/FontAwesomeIcons.shieldHalved/g' \
-            -e 's/Icons\.verified_user/FontAwesomeIcons.shieldHalved/g' \
-            -e 's/Icons\.fingerprint/FontAwesomeIcons.fingerprint/g' \
-            -e 's/Icons\.android/FontAwesomeIcons.android/g' \
-            -e 's/Icons\.smartphone/FontAwesomeIcons.mobile/g' \
-            -e 's/Icons\.computer/FontAwesomeIcons.desktop/g' \
-            -e 's/Icons\.language/FontAwesomeIcons.globe/g' \
-            {} \;
-          echo "   ✓ Done"
+          BEFORE=$(grep -rnE "\bmutableData\.value" lib/ 2>/dev/null | wc -l)
+          echo "   📊 Before: $BEFORE mutableData.value usages"
 
-          echo ""
-          REMAINING=$(grep -rE "Icon\(FontAwesomeIcons\." lib/ 2>/dev/null | wc -l)
-          echo "📊 Remaining Icon(FontAwesomeIcons.X): $REMAINING"
-          echo "✅ FontAwesome v11 patch complete"
+          if [ "$BEFORE" -gt 0 ]; then
+            find lib -name "*.dart" -type f -exec sed -i -E \
+              's/\bmutableData\.value/(mutableData as MutableData).value/g' {} \;
 
-      # ═══════════════════════════════════════════════════════════
-      # 🔥 AUTO-PATCH FIREBASE_DATABASE V12
-      # ═══════════════════════════════════════════════════════════
-      - name: Auto-Patch firebase_database v12
-        if: env.FRAMEWORK == 'flutter'
-        working-directory: project
-        run: |
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-          echo "▓  🔥 AUTO-PATCH #2: FIREBASE_DATABASE V12 MUTABLEDATA     ▓"
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
+            for f in $(grep -rl "MutableData" lib/ 2>/dev/null); do
+              if ! grep -q "import 'package:firebase_database/firebase_database.dart'" "$f"; then
+                sed -i "1i import 'package:firebase_database/firebase_database.dart';" "$f"
+              fi
+            done
 
-          if [ ! -d "lib" ]; then
-            echo "⚠️  No lib folder, skipping"
-            exit 0
+            AFTER=$(grep -rnE "\bmutableData\.value" lib/ 2>/dev/null | grep -v "(mutableData as MutableData)" | wc -l)
+            echo "   📊 After : $AFTER usages"
+            [ "$AFTER" -eq 0 ] && PATCH_APPLIED=$((PATCH_APPLIED + 1))
+          else
+            echo "   ✅ Nothing to patch"
           fi
+          PATCH_TOTAL=$((PATCH_TOTAL + 1))
+          echo ""
 
-          AFFECTED=$(grep -rlE "mutableData\.value" lib/ 2>/dev/null | wc -l)
-          echo "📊 Files with mutableData.value: $AFFECTED"
+          # ═══════════════════════════════════════════════════════════
+          # PATCH 3: font_awesome_flutter v11
+          # ═══════════════════════════════════════════════════════════
+          echo "┌──────────────────────────────────────────────────────────────────────┐"
+          echo "│  🎨 PATCH 3: font_awesome_flutter v11 (Icon → FaIcon)               │"
+          echo "└──────────────────────────────────────────────────────────────────────┘"
 
-          if [ "$AFFECTED" -eq 0 ]; then
-            echo "ℹ️  No mutableData usage, skipping patch"
-            exit 0
+          BEFORE=$(grep -rn "Icon(FontAwesomeIcons\." lib/ 2>/dev/null | wc -l)
+          echo "   📊 Before: $BEFORE Icon(FontAwesomeIcons...) usages"
+
+          if [ "$BEFORE" -gt 0 ]; then
+            find lib -name "*.dart" -type f -exec sed -i -E \
+              's/(\bconst\s+)?Icon\(FontAwesomeIcons\./\1FaIcon(FontAwesomeIcons./g' {} \;
+
+            for f in $(grep -rl "FontAwesomeIcons" lib/ 2>/dev/null); do
+              sed -i -E 's/\bIconData\?/FaIconData?/g; s/\bIconData\b/FaIconData/g' "$f"
+            done
+
+            AFTER=$(grep -rn "Icon(FontAwesomeIcons\." lib/ 2>/dev/null | wc -l)
+            echo "   📊 After : $AFTER usages"
+            [ "$AFTER" -lt "$BEFORE" ] && PATCH_APPLIED=$((PATCH_APPLIED + 1))
+          else
+            echo "   ✅ Nothing to patch"
           fi
-
+          PATCH_TOTAL=$((PATCH_TOTAL + 1))
           echo ""
-          echo "🔧 [1/2] Converting mutableData.value → (mutableData as MutableData).value..."
-          find lib -name "*.dart" -type f -exec sed -i -E \
-            's/\bmutableData\.value/(mutableData as MutableData).value/g' {} \;
-          echo "   ✓ Done"
 
+          # ═══════════════════════════════════════════════════════════
+          # PATCH 4: file_picker result access (.files → direct)
+          # ═══════════════════════════════════════════════════════════
+          echo "┌──────────────────────────────────────────────────────────────────────┐"
+          echo "│  📁 PATCH 4: file_picker result access (.files → direct)             │"
+          echo "└──────────────────────────────────────────────────────────────────────┘"
+
+          BEFORE=$(grep -rnE "picked!?\.[files]+\." lib/ 2>/dev/null | wc -l)
+          echo "   📊 Before: $BEFORE .files.X usages"
+
+          if [ "$BEFORE" -gt 0 ]; then
+            find lib -name "*.dart" -type f -exec sed -i -E \
+              -e 's/picked!\.files\.first/picked!.first/g' \
+              -e 's/picked\.files\.first/picked.first/g' \
+              -e 's/picked!\.files\.single/picked!.first/g' \
+              -e 's/picked\.files\.single/picked.first/g' \
+              -e 's/picked!\.files\.isEmpty/picked!.isEmpty/g' \
+              -e 's/picked\.files\.isEmpty/picked.isEmpty/g' \
+              -e 's/picked!\.files\.length/picked!.length/g' \
+              -e 's/picked\.files\.length/picked.length/g' \
+              {} \;
+
+            AFTER=$(grep -rnE "picked!?\.[files]+\." lib/ 2>/dev/null | wc -l)
+            echo "   📊 After : $AFTER usages"
+            [ "$AFTER" -lt "$BEFORE" ] && PATCH_APPLIED=$((PATCH_APPLIED + 1))
+          else
+            echo "   ✅ Nothing to patch"
+          fi
+          PATCH_TOTAL=$((PATCH_TOTAL + 1))
           echo ""
-          echo "🔧 [2/2] Ensuring firebase_database import exists..."
-          for f in $(grep -rl "MutableData" lib/ 2>/dev/null); do
-            if ! grep -q "import 'package:firebase_database/firebase_database.dart'" "$f"; then
-              echo "   Adding import to: $f"
-              sed -i "1i import 'package:firebase_database/firebase_database.dart';" "$f"
+
+          # ═══════════════════════════════════════════════════════════
+          # PATCH 5: pubspec upgrades
+          # ═══════════════════════════════════════════════════════════
+          echo "┌──────────────────────────────────────────────────────────────────────┐"
+          echo "│  📦 PATCH 5: pubspec.yaml version upgrades                           │"
+          echo "└──────────────────────────────────────────────────────────────────────┘"
+
+          if [ -f "pubspec.yaml" ]; then
+            if grep -qE "font_awesome_flutter:" pubspec.yaml; then
+              echo "   🔧 Upgrading font_awesome_flutter to ^11.0.0..."
+              sed -i -E 's/font_awesome_flutter:[[:space:]]*.*/font_awesome_flutter: ^11.0.0/g' pubspec.yaml
+              echo "   ✅ Upgraded"
+              PATCH_APPLIED=$((PATCH_APPLIED + 1))
+            else
+              echo "   ℹ️  font_awesome_flutter not used"
             fi
-          done
-          echo "   ✓ Done"
-
+          fi
+          PATCH_TOTAL=$((PATCH_TOTAL + 1))
           echo ""
-          echo "✅ firebase_database v12 patch complete"
+
+          # ═══════════════════════════════════════════════════════════
+          # PATCH 6: file_picker v13 — file.bytes removal
+          # ═══════════════════════════════════════════════════════════
+          echo "┌──────────────────────────────────────────────────────────────────────┐"
+          echo "│  📄 PATCH 6: file_picker v13 — file.bytes → File(path).readAsBytes() │"
+          echo "└──────────────────────────────────────────────────────────────────────┘"
+
+          BEFORE=$(grep -rnE "\b(file|f|picked\.first)\.bytes\s*\?\?" lib/ 2>/dev/null | grep -v "readAsBytes" | wc -l)
+          echo "   📊 Before: $BEFORE file.bytes usages"
+
+          if [ "$BEFORE" -gt 0 ]; then
+            # Pattern A: file.bytes ?? (file.path == null ? null : await File(file.path!).readAsBytes())
+            find lib -name "*.dart" -type f -exec sed -i -E \
+              's/file\.bytes[[:space:]]*\?\?[[:space:]]*\(file\.path[[:space:]]*==[[:space:]]*null[[:space:]]*\?[[:space:]]*null[[:space:]]*:[[:space:]]*await[[:space:]]+File\(file\.path!\)\.readAsBytes\(\)\)/await File(file.path!).readAsBytes()/g' {} \;
+
+            # Pattern B: file.bytes ?? await File(file.path!).readAsBytes()
+            find lib -name "*.dart" -type f -exec sed -i -E \
+              's/file\.bytes[[:space:]]*\?\?[[:space:]]*await[[:space:]]+File\(file\.path!\)\.readAsBytes\(\)/await File(file.path!).readAsBytes()/g' {} \;
+
+            # Pattern C: f.bytes ?? (f.path == null ? null : await File(f.path!).readAsBytes())
+            find lib -name "*.dart" -type f -exec sed -i -E \
+              's/f\.bytes[[:space:]]*\?\?[[:space:]]*\(f\.path[[:space:]]*==[[:space:]]*null[[:space:]]*\?[[:space:]]*null[[:space:]]*:[[:space:]]*await[[:space:]]+File\(f\.path!\)\.readAsBytes\(\)\)/await File(f.path!).readAsBytes()/g' {} \;
+
+            # Pattern D: f.bytes ?? await File(f.path!).readAsBytes()
+            find lib -name "*.dart" -type f -exec sed -i -E \
+              's/f\.bytes[[:space:]]*\?\?[[:space:]]*await[[:space:]]+File\(f\.path!\)\.readAsBytes\(\)/await File(f.path!).readAsBytes()/g' {} \;
+
+            # Pattern E: picked.first.bytes ?? ...
+            find lib -name "*.dart" -type f -exec sed -i -E \
+              's/picked\.first\.bytes[[:space:]]*\?\?[[:space:]]*\(picked\.first\.path[[:space:]]*==[[:space:]]*null[[:space:]]*\?[[:space:]]*null[[:space:]]*:[[:space:]]*await[[:space:]]+File\(picked\.first\.path!\)\.readAsBytes\(\)\)/await File(picked.first.path!).readAsBytes()/g' {} \;
+
+            AFTER=$(grep -rnE "\b(file|f|picked\.first)\.bytes\s*\?\?" lib/ 2>/dev/null | grep -v "readAsBytes" | wc -l)
+            echo "   📊 After : $AFTER file.bytes usages"
+            [ "$AFTER" -lt "$BEFORE" ] && PATCH_APPLIED=$((PATCH_APPLIED + 1))
+          else
+            echo "   ✅ Nothing to patch"
+          fi
+          PATCH_TOTAL=$((PATCH_TOTAL + 1))
+          echo ""
+
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║  📊 PATCH SUMMARY: $PATCH_APPLIED / $PATCH_TOTAL categories"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
 
       # ═══════════════════════════════════════════════════════════
-      # 🔥 AUTO-PATCH FILE_PICKER V13
+      # VERIFICATION
       # ═══════════════════════════════════════════════════════════
-      - name: Auto-Patch file_picker v13
+      - name: 🔍 Verify Patches Applied
         if: env.FRAMEWORK == 'flutter'
         working-directory: project
         run: |
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-          echo "▓  📁 AUTO-PATCH #3: FILE_PICKER V13 API                   ▓"
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║  🔍 STEP 5/9 : VERIFICATION                                          ║"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
 
           if [ ! -d "lib" ]; then
-            echo "⚠️  No lib folder, skipping"
+            echo "⚠️  No lib folder, skipping verification"
             exit 0
           fi
 
-          AFFECTED=$(grep -rl "FilePicker\.platform" lib/ 2>/dev/null | wc -l)
-          echo "📊 Files with FilePicker.platform: $AFFECTED"
+          ISSUES=0
 
-          if [ "$AFFECTED" -eq 0 ]; then
-            echo "ℹ️  No FilePicker.platform usage, skipping patch"
-            exit 0
+          ALLOW_MULTI=$(grep -rn "allowMultiple" lib/ 2>/dev/null | wc -l)
+          [ "$ALLOW_MULTI" -gt 0 ] && { echo "❌ $ALLOW_MULTI 'allowMultiple' occurrences remain!"; ISSUES=$((ISSUES + 1)); } || echo "✅ No 'allowMultiple' found"
+
+          WITH_DATA=$(grep -rn "withData" lib/ 2>/dev/null | wc -l)
+          [ "$WITH_DATA" -gt 0 ] && { echo "❌ $WITH_DATA 'withData' occurrences remain!"; ISSUES=$((ISSUES + 1)); } || echo "✅ No 'withData' found"
+
+          FP_PLATFORM=$(grep -rn "FilePicker\.platform" lib/ 2>/dev/null | wc -l)
+          [ "$FP_PLATFORM" -gt 0 ] && { echo "❌ $FP_PLATFORM 'FilePicker.platform' occurrences remain!"; ISSUES=$((ISSUES + 1)); } || echo "✅ No 'FilePicker.platform' found"
+
+          FILE_BYTES=$(grep -rnE "\b(file|f|picked\.first)\.bytes\s*\?\?" lib/ 2>/dev/null | grep -v "readAsBytes" | wc -l)
+          [ "$FILE_BYTES" -gt 0 ] && { echo "❌ $FILE_BYTES 'file.bytes ??' occurrences remain!"; ISSUES=$((ISSUES + 1)); } || echo "✅ No 'file.bytes' pattern found"
+
+          echo ""
+          if [ "$ISSUES" -gt 0 ]; then
+            echo "⚠️  $ISSUES critical issues remain. Build may fail."
+            echo "💡 Manual fix: downgrade file_picker to ^8.3.7 di pubspec.yaml"
+          else
+            echo "✅ All critical patches verified!"
           fi
-
-          echo ""
-          echo "🔧 [1/3] Converting FilePicker.platform.pickFiles() → FilePicker.pickFiles()..."
-          find lib -name "*.dart" -type f -exec sed -i -E \
-            's/FilePicker\.platform\.pickFiles/FilePicker.pickFiles/g' {} \;
-          echo "   ✓ Done"
-
-          echo ""
-          echo "🔧 [2/3] Removing deprecated withData parameter..."
-          find lib -name "*.dart" -type f -exec sed -i -E \
-            '/^\s*withData\s*:\s*(true|false)\s*,\s*$/d' {} \;
-          echo "   ✓ Done"
-
-          echo ""
-          echo "🔧 [3/3] Converting picked.files.X → picked.X (list access)..."
-          find lib -name "*.dart" -type f -exec sed -i -E \
-            's/picked!\?\.files\.first/picked!.first/g' \
-            {} \;
-          find lib -name "*.dart" -type f -exec sed -i -E \
-            's/picked!\?\.files\.single/picked!.single/g' \
-            {} \;
-          find lib -name "*.dart" -type f -exec sed -i -E \
-            's/picked\.files\.first/picked.first/g' \
-            {} \;
-          find lib -name "*.dart" -type f -exec sed -i -E \
-            's/picked\.files\.single/picked.single/g' \
-            {} \;
-          find lib -name "*.dart" -type f -exec sed -i -E \
-            's/picked!\.files\.first/picked!.first/g' \
-            {} \;
-          find lib -name "*.dart" -type f -exec sed -i -E \
-            's/picked!\.files\.single/picked!.single/g' \
-            {} \;
-          echo "   ✓ Done"
-
-          echo ""
-          echo "✅ file_picker v13 patch complete"
 
       # ═══════════════════════════════════════════════════════════
       # PRE-FIX GRADLE & SDK
       # ═══════════════════════════════════════════════════════════
-      - name: Pre-Fix Gradle & SDK Versions
+      - name: 🔧 Pre-Fix Gradle & SDK
         if: env.FRAMEWORK == 'flutter'
         working-directory: project
         run: |
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-          echo "▓  🔧 STEP 4: PRE-FIX GRADLE & SDK                          ▓"
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║  🔧 STEP 6/9 : GRADLE & SDK VERSION FIX                              ║"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
 
-          # ── Fix font_awesome version ──
-          echo "🔧 Checking font_awesome_flutter version..."
-          if [ -f "pubspec.yaml" ]; then
-            CURRENT_FA=$(grep -E "^\s*font_awesome_flutter:" pubspec.yaml | head -1 || echo "")
-            echo "   Current: $CURRENT_FA"
-            if echo "$CURRENT_FA" | grep -qE "font_awesome_flutter"; then
-              echo "   Upgrading to ^11.0.0..."
-              sed -i 's/font_awesome_flutter: .*/font_awesome_flutter: ^11.0.0/g' pubspec.yaml
-            fi
-          fi
-
-          # ── Fix Gradle wrapper ──
-          echo "🔧 Upgrading Gradle wrapper to 8.14..."
           WRAPPER="android/gradle/wrapper/gradle-wrapper.properties"
           if [ -f "$WRAPPER" ]; then
             sed -i 's|gradle-[0-9.]*-all.zip|gradle-8.14-all.zip|g' "$WRAPPER"
             sed -i 's|gradle-[0-9.]*-bin.zip|gradle-8.14-bin.zip|g' "$WRAPPER"
-            echo "   Gradle wrapper updated"
           else
             mkdir -p android/gradle/wrapper
             printf '%s\n' \
@@ -469,11 +477,8 @@ jobs:
               'networkTimeout=10000' \
               'validateDistributionUrl=true' \
               > "$WRAPPER"
-            echo "   Gradle wrapper created"
           fi
 
-          # ── Fix SDK versions ──
-          echo "🔧 Setting compileSdk/targetSdk to 36..."
           APP_KTS="android/app/build.gradle.kts"
           if [ -f "$APP_KTS" ]; then
             sed -i 's/compileSdk *= *[0-9]*/compileSdk = 36/g' "$APP_KTS" || true
@@ -488,33 +493,28 @@ jobs:
             sed -i 's/minSdkVersion .*/minSdkVersion 21/g' "$APP_GRADLE" || true
           fi
 
-          # ── Clean ──
-          echo "🧹 Cleaning build artifacts..."
           rm -rf build android/build android/app/build android/.gradle .gradle pubspec.lock .dart_tool || true
-
-          echo "✅ Pre-fix complete"
+          echo "✅ Gradle & SDK ready"
 
       # ═══════════════════════════════════════════════════════════
-      # BUILD FLUTTER APK
+      # BUILD APK
       # ═══════════════════════════════════════════════════════════
-      - name: Build Flutter APK
+      - name: 💙 Build Flutter APK
         if: env.FRAMEWORK == 'flutter'
         working-directory: project
         run: |
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-          echo "▓  💙 STEP 5: BUILD FLUTTER APK                             ▓"
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║  💙 STEP 7/9 : BUILD FLUTTER APK                                     ║"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
 
           export JAVA_HOME="$JAVA_HOME_17_X64"
           export PATH="$JAVA_HOME/bin:$PATH"
 
-          echo ""
-          echo "📦 [1/3] Resolving dependencies..."
           flutter clean || true
           flutter pub get 2>&1 | tee pubget.log
 
           if [ ${PIPESTATUS[0]} -ne 0 ]; then
-            echo "⚠️  pub get failed, retrying with clean cache..."
+            echo "⚠️  pub get failed, retrying..."
             rm -f pubspec.lock
             flutter pub cache repair || true
             flutter pub get 2>&1 | tee pubget_retry.log
@@ -524,44 +524,44 @@ jobs:
           [ "${{ github.event.inputs.build_type }}" = "debug" ] && BUILD_FLAG="--debug"
 
           echo ""
-          echo "🔨 [2/3] Building APK ($BUILD_FLAG)..."
+          echo "🔨 Building APK ($BUILD_FLAG)..."
           set +e
           flutter build apk $BUILD_FLAG --no-tree-shake-icons --android-skip-build-dependency-validation 2>&1 | tee build_output.log
           BUILD_EXIT=${PIPESTATUS[0]}
           set -e
 
           echo ""
-          echo "📊 [3/3] Build result: exit code $BUILD_EXIT"
+          echo "📊 Build exit code: $BUILD_EXIT"
 
           if [ $BUILD_EXIT -ne 0 ]; then
             echo ""
-            echo "╔════════════════════════════════════════════════════════════╗"
-            echo "║              ❌ BUILD FAILED — FULL LOG                   ║"
-            echo "╚════════════════════════════════════════════════════════════╝"
-            cat build_output.log
+            echo "╔══════════════════════════════════════════════════════════════════════╗"
+            echo "║              ❌ BUILD FAILED                                         ║"
+            echo "╚══════════════════════════════════════════════════════════════════════╝"
             echo ""
-            echo "╔════════════════════════════════════════════════════════════╗"
-            echo "║              🔍 ERROR KEYWORDS                            ║"
-            echo "╚════════════════════════════════════════════════════════════╝"
-            grep -E "Error:|error:|FAILURE|Could not|Namespace|compileSdk|BUILD FAILED|Exception|Missing|not found" build_output.log | head -50 || true
+            echo "═══ 📋 LAST 60 LINES ═══"
+            tail -60 build_output.log
+            echo ""
+            echo "═══ 🔍 ERROR LINES ═══"
+            grep -E "Error:|error:|FAILURE|Could not|Namespace|compileSdk|BUILD FAILED|Exception|Missing|not found|Cannot|Undefined" build_output.log | head -30 || true
             exit 1
           fi
 
           echo ""
-          echo "╔════════════════════════════════════════════════════════════╗"
-          echo "║              ✅ FLUTTER BUILD SUCCESSFUL                   ║"
-          echo "╚════════════════════════════════════════════════════════════╝"
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║              ✅ FLUTTER BUILD SUCCESSFUL!                            ║"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
 
       # ═══════════════════════════════════════════════════════════
       # BUILD NATIVE ANDROID
       # ═══════════════════════════════════════════════════════════
-      - name: Build Native Android APK
+      - name: 🤖 Build Native Android APK
         if: env.FRAMEWORK == 'native-android'
         working-directory: project
         run: |
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-          echo "▓  🤖 STEP 5: BUILD NATIVE ANDROID APK                      ▓"
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║  🤖 BUILD NATIVE ANDROID APK                                         ║"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
 
           if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
             GRADLE_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties || echo "")
@@ -593,9 +593,140 @@ jobs:
           echo "✅ Native Android build successful"
 
       # ═══════════════════════════════════════════════════════════
-      # UPLOAD FAILURE LOG
+      # AI ERROR ANALYZER (Claude 3 Haiku)
       # ═══════════════════════════════════════════════════════════
-      - name: Upload Failure Logs
+      - name: 🤖 AI Error Analyzer (Claude 3 Haiku)
+        if: failure()
+        run: |
+          echo ""
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║  🤖 AI ERROR ANALYZER (Claude 3 Haiku)                              ║"
+          echo "║  🧠 Menganalisis error untuk kasih solusi                            ║"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
+          echo ""
+
+          if [ ! -f "project/build_output.log" ]; then
+            echo "⚠️  No build log to analyze, skipping AI"
+            exit 0
+          fi
+
+          echo "📊 Extracting error context..."
+          ERROR_FILE="/tmp/ai_error_input.txt"
+          {
+            echo "=== Flutter Build Failure ==="
+            echo "Framework: $FRAMEWORK"
+            echo "Build type: ${{ github.event.inputs.build_type }}"
+            echo "Flutter version: ${{ github.event.inputs.flutter_version }}"
+            echo ""
+            echo "=== Error Lines ==="
+            grep -E "Error:|error:|FAILURE|Exception|Could not|BUILD FAILED|Undefined|Missing|No such|Cannot|not found" project/build_output.log | head -30 || echo "(no specific error lines)"
+            echo ""
+            echo "=== Last 20 lines ==="
+            tail -20 project/build_output.log
+          } > "$ERROR_FILE"
+
+          if [ ! -s "$ERROR_FILE" ]; then
+            echo "⚠️  No error content to analyze"
+            exit 0
+          fi
+
+          ERROR_TEXT=$(cat "$ERROR_FILE" | head -c 2000)
+          echo "✅ Extracted $(echo -n "$ERROR_TEXT" | wc -c) chars of error context"
+
+          PAYLOAD=$(jq -n --arg text "Sebuah project Flutter gagal build APK dengan error berikut:
+
+$ERROR_TEXT
+
+Berikan ANALISIS dalam format:
+
+1. AKAR MASALAH (1 kalimat singkat)
+2. SOLUSI CEPAT (3-5 poin actionable, spesifik ke file/line)
+3. PENCEGAHAN (1 kalimat)
+
+Jawab dalam bahasa Indonesia, singkat dan fokus ke solusi praktis." '{text: $text}')
+
+          echo ""
+          echo "🤖 Mengirim ke Claude AI..."
+          echo "   Endpoint: https://api-faa.my.id/faa/claude-ai"
+          echo ""
+
+          RESPONSE=""
+          for attempt in 1 2 3; do
+            echo "  Attempt $attempt/3..."
+            RESPONSE=$(curl -s --max-time 90 \
+              -X POST "https://api-faa.my.id/faa/claude-ai" \
+              -H "Content-Type: application/json" \
+              -H "User-Agent: Web2APK-Builder/2.0" \
+              -d "$PAYLOAD" 2>&1) || true
+
+            if [ -n "$RESPONSE" ] && [ "$RESPONSE" != "null" ] && [ "$RESPONSE" != "{}" ]; then
+              echo "  ✅ Got response (${#RESPONSE} chars)"
+              break
+            fi
+
+            echo "  ⚠️  Empty response, retrying in 3s..."
+            sleep 3
+          done
+
+          if [ -z "$RESPONSE" ] || [ "$RESPONSE" = "null" ]; then
+            echo ""
+            echo "❌ AI tidak merespon setelah 3 percobaan"
+            echo "💡 Kemungkinan: API down, timeout, atau rate limit"
+            exit 0
+          fi
+
+          AI_TEXT=""
+          if command -v jq >/dev/null 2>&1; then
+            AI_TEXT=$(echo "$RESPONSE" | jq -r '.response // .message // .result // .data // .text // empty' 2>/dev/null || echo "")
+          fi
+          if [ -z "$AI_TEXT" ] || [ "$AI_TEXT" = "null" ]; then
+            AI_TEXT="$RESPONSE"
+          fi
+
+          echo ""
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║  🤖 AI ANALYSIS (Claude 3 Haiku)                                     ║"
+          echo "╠══════════════════════════════════════════════════════════════════════╣"
+          echo "$AI_TEXT" | while IFS= read -r line; do
+            printf "║  %s\n" "$line"
+          done
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "⚠️  DISCLAIMER: AI suggestion belum terverifikasi."
+          echo "    Test fix di lokal sebelum apply ke production."
+          echo ""
+
+          {
+            echo "═══════════════════════════════════════════════════════════════════"
+            echo "AI ERROR ANALYSIS - Claude 3 Haiku"
+            echo "Generated at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "Run ID: ${{ github.run_id }}"
+            echo "═══════════════════════════════════════════════════════════════════"
+            echo ""
+            echo "── ERROR CONTEXT ──"
+            echo "$ERROR_TEXT"
+            echo ""
+            echo "── AI ANALYSIS ──"
+            echo "$AI_TEXT"
+          } > /tmp/ai_analysis.txt
+
+          {
+            echo ""
+            echo "---"
+            echo ""
+            echo "## 🤖 AI Error Analysis (Claude 3 Haiku)"
+            echo ""
+            echo "> ⚠️ **Suggestion from AI — verify before applying**"
+            echo ""
+            echo "$AI_TEXT"
+          } >> $GITHUB_STEP_SUMMARY
+
+          echo "✅ AI analysis saved to summary & artifact"
+
+      # ═══════════════════════════════════════════════════════════
+      # UPLOAD FAILURE LOGS + AI ANALYSIS
+      # ═══════════════════════════════════════════════════════════
+      - name: 📤 Upload Logs & AI Analysis
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -604,21 +735,21 @@ jobs:
             project/build_output.log
             project/pubget.log
             project/pubget_retry.log
+            /tmp/ai_analysis.txt
           retention-days: 7
           if-no-files-found: ignore
 
       # ═══════════════════════════════════════════════════════════
-      # FIND APK
+      # FIND & UPLOAD APK
       # ═══════════════════════════════════════════════════════════
-      - name: Find APK
+      - name: 📱 Find APK
         if: success()
         id: find_apk
         run: |
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-          echo "▓  📦 STEP 6: FIND APK                                      ▓"
-          echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          echo "║  📱 STEP 8/9 : FIND APK                                              ║"
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
 
-          echo "🔍 Searching for APK..."
           find project -type f -name "*.apk" 2>/dev/null | head -20 || echo "No APK found"
 
           APK_FILE=$(find project -type f -name "*.apk" | grep -v "androidTest" | head -n 1)
@@ -630,24 +761,23 @@ jobs:
 
           APK_FILE=$(echo "$APK_FILE" | sed 's|^\./||')
           APK_SIZE=$(du -h "$APK_FILE" | cut -f1)
+          APK_BYTES=$(stat -c %s "$APK_FILE")
           APK_SHA=$(sha256sum "$APK_FILE" | cut -d ' ' -f1)
 
           echo "APK_PATH=$APK_FILE" >> $GITHUB_ENV
           echo "APK_NAME=$(basename $APK_FILE)" >> $GITHUB_ENV
           echo "APK_SIZE=$APK_SIZE" >> $GITHUB_ENV
+          echo "APK_BYTES=$APK_BYTES" >> $GITHUB_ENV
           echo "APK_SHA=$APK_SHA" >> $GITHUB_ENV
 
           echo ""
-          echo "✅ APK found:"
-          echo "   📱 Name : $(basename $APK_FILE)"
-          echo "   📦 Size : $APK_SIZE"
-          echo "   📍 Path : $APK_FILE"
-          echo "   🔐 SHA  : $APK_SHA"
+          echo "✅ APK Found:"
+          echo "   📱 Name    : $(basename $APK_FILE)"
+          echo "   📦 Size    : $APK_SIZE"
+          echo "   📍 Path    : $APK_FILE"
+          echo "   🔐 SHA-256 : $APK_SHA"
 
-      # ═══════════════════════════════════════════════════════════
-      # UPLOAD APK
-      # ═══════════════════════════════════════════════════════════
-      - name: Upload APK Artifact
+      - name: 📤 Upload APK Artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
@@ -659,30 +789,42 @@ jobs:
       # ═══════════════════════════════════════════════════════════
       # FINAL SUMMARY
       # ═══════════════════════════════════════════════════════════
-      - name: Final Summary
+      - name: 🏁 Final Summary
         if: always()
         run: |
-          echo ""
-          echo "╔════════════════════════════════════════════════════════════╗"
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "║              ✅ BUILD SUCCESSFUL                            ║"
-            echo "╚════════════════════════════════════════════════════════════╝"
-            echo ""
-            echo "📱 File    : ${{ env.APK_NAME }}"
-            echo "📦 Size    : ${{ env.APK_SIZE }}"
-            echo "🔐 SHA-256 : ${{ env.APK_SHA }}"
-          else
-            echo "║              ❌ BUILD FAILED                                ║"
-            echo "╚════════════════════════════════════════════════════════════╝"
-            echo ""
-            echo "💡 Check logs above for details"
-            echo "📥 Download 'build-failure-log' artifact for full log"
-          fi
-          echo ""
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME_EPOCH))
+          MINUTES=$((DURATION / 60))
+          SECONDS=$((DURATION % 60))
 
-      - name: Job Summary Markdown
+          echo ""
+          echo "╔══════════════════════════════════════════════════════════════════════╗"
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "║                    🎉 BUILD SUCCESSFUL 🎉                            ║"
+            echo "╠══════════════════════════════════════════════════════════════════════╣"
+            echo "║  📱 APK Name    : ${{ env.APK_NAME }}"
+            echo "║  📦 Size        : ${{ env.APK_SIZE }}"
+            echo "║  🔐 SHA-256     : ${{ env.APK_SHA }}"
+            echo "║  ⏱️  Build Time  : ${MINUTES}m ${SECONDS}s"
+            echo "║  📥 Download    : Tab 'Artifacts' → apk-build-output"
+          else
+            echo "║                    ❌ BUILD FAILED ❌                                ║"
+            echo "╠══════════════════════════════════════════════════════════════════════╣"
+            echo "║  ⏱️  Duration     : ${MINUTES}m ${SECONDS}s"
+            echo "║  🤖 AI Analyzed  : Check summary tab for AI suggestion"
+            echo "║  📥 Full Log    : Tab 'Artifacts' → build-failure-log"
+            echo "║  💡 Next        : Follow AI recommendation above"
+          fi
+          echo "╚══════════════════════════════════════════════════════════════════════╝"
+
+      - name: 📝 GitHub Job Summary
         if: always()
         run: |
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME_EPOCH))
+          MINUTES=$((DURATION / 60))
+          SECONDS=$((DURATION % 60))
+
           if [ "${{ job.status }}" = "success" ]; then
             echo "# ✅ Build Successful" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -693,18 +835,30 @@ jobs:
             echo "| 📱 File | \`${{ env.APK_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
             echo "| 📦 Size | \`${{ env.APK_SIZE }}\` |" >> $GITHUB_STEP_SUMMARY
             echo "| 🔐 SHA-256 | \`${{ env.APK_SHA }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⏱️ Duration | \`${MINUTES}m ${SECONDS}s\` |" >> $GITHUB_STEP_SUMMARY
             echo "| 🎯 Build Type | \`${{ github.event.inputs.build_type }}\` |" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "## 🔧 Auto-Patches Applied" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ FontAwesome v11 compatibility" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ firebase_database v12 MutableData" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ file_picker v13 API" >> $GITHUB_STEP_SUMMARY
+            echo "## 🔧 Auto-Patches Applied (6 categories)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ file_picker v13 (platform, allowMultiple, withData)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ firebase_database v12 (MutableData cast)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ font_awesome_flutter v11 (Icon → FaIcon)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ result access (.files.X → direct)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ pubspec upgrades (font_awesome v11)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ file_picker v13 (file.bytes → File(path).readAsBytes)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## 📥 Download" >> $GITHUB_STEP_SUMMARY
+            echo "Scroll down → **Artifacts** → \`apk-build-output\`" >> $GITHUB_STEP_SUMMARY
           else
             echo "# ❌ Build Failed" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "## 🔍 Troubleshooting" >> $GITHUB_STEP_SUMMARY
+            echo "## 📊 Build Info" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "1. Check step logs above" >> $GITHUB_STEP_SUMMARY
-            echo "2. Download \`build-failure-log\` artifact" >> $GITHUB_STEP_SUMMARY
-            echo "3. Check error keywords in log" >> $GITHUB_STEP_SUMMARY
+            echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ⏱️ Duration | \`${MINUTES}m ${SECONDS}s\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🎯 Source | \`${{ github.event.inputs.source_type }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| 💙 Flutter | \`${{ github.event.inputs.flutter_version }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## 📥 Download Logs" >> $GITHUB_STEP_SUMMARY
+            echo "Scroll down → **Artifacts** → \`build-failure-log\`" >> $GITHUB_STEP_SUMMARY
           fi
