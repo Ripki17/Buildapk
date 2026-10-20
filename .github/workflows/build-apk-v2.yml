@@ -211,15 +211,15 @@ jobs:
           echo "✅ Flutter SDK ready"
 
       # ═══════════════════════════════════════════════════════════
-      # MEGA AUTO-PATCH HUB (6 CATEGORIES)
+      # MEGA AUTO-PATCH HUB
       # ═══════════════════════════════════════════════════════════
-      - name: 🔥 Auto-Patch Hub (6 Categories)
+      - name: 🔥 Auto-Patch Hub (5 Categories)
         if: env.FRAMEWORK == 'flutter'
         working-directory: project
         run: |
           echo "╔══════════════════════════════════════════════════════════════════════╗"
           echo "║  🔥 STEP 4/9 : MEGA AUTO-PATCH HUB                                   ║"
-          echo "║  🎯 Auto-fix 6 known breaking changes                                ║"
+          echo "║  🎯 Auto-fix 5 known breaking changes                                ║"
           echo "╚══════════════════════════════════════════════════════════════════════╝"
           echo ""
 
@@ -232,10 +232,10 @@ jobs:
           PATCH_APPLIED=0
 
           # ═══════════════════════════════════════════════════════════
-          # PATCH 1: file_picker v13 — platform + deprecated params
+          # PATCH 1: file_picker v13 API
           # ═══════════════════════════════════════════════════════════
           echo "┌──────────────────────────────────────────────────────────────────────┐"
-          echo "│  🔧 PATCH 1: file_picker v13 (platform, allowMultiple, withData)     │"
+          echo "│  🔧 PATCH 1: file_picker v13                                         │"
           echo "└──────────────────────────────────────────────────────────────────────┘"
 
           BEFORE=$(grep -rn "allowMultiple\|withData\|FilePicker\.platform\|withReadStream\|allowCompression" lib/ 2>/dev/null | wc -l)
@@ -319,10 +319,10 @@ jobs:
           echo ""
 
           # ═══════════════════════════════════════════════════════════
-          # PATCH 4: file_picker result access (.files → direct)
+          # PATCH 4: file_picker result access
           # ═══════════════════════════════════════════════════════════
           echo "┌──────────────────────────────────────────────────────────────────────┐"
-          echo "│  📁 PATCH 4: file_picker result access (.files → direct)             │"
+          echo "│  📁 PATCH 4: file_picker result access                               │"
           echo "└──────────────────────────────────────────────────────────────────────┘"
 
           BEFORE=$(grep -rnE "picked!?\.[files]+\." lib/ 2>/dev/null | wc -l)
@@ -369,46 +369,6 @@ jobs:
           PATCH_TOTAL=$((PATCH_TOTAL + 1))
           echo ""
 
-          # ═══════════════════════════════════════════════════════════
-          # PATCH 6: file_picker v13 — file.bytes removal
-          # ═══════════════════════════════════════════════════════════
-          echo "┌──────────────────────────────────────────────────────────────────────┐"
-          echo "│  📄 PATCH 6: file_picker v13 — file.bytes → File(path).readAsBytes() │"
-          echo "└──────────────────────────────────────────────────────────────────────┘"
-
-          BEFORE=$(grep -rnE "\b(file|f|picked\.first)\.bytes\s*\?\?" lib/ 2>/dev/null | grep -v "readAsBytes" | wc -l)
-          echo "   📊 Before: $BEFORE file.bytes usages"
-
-          if [ "$BEFORE" -gt 0 ]; then
-            # Pattern A: file.bytes ?? (file.path == null ? null : await File(file.path!).readAsBytes())
-            find lib -name "*.dart" -type f -exec sed -i -E \
-              's/file\.bytes[[:space:]]*\?\?[[:space:]]*\(file\.path[[:space:]]*==[[:space:]]*null[[:space:]]*\?[[:space:]]*null[[:space:]]*:[[:space:]]*await[[:space:]]+File\(file\.path!\)\.readAsBytes\(\)\)/await File(file.path!).readAsBytes()/g' {} \;
-
-            # Pattern B: file.bytes ?? await File(file.path!).readAsBytes()
-            find lib -name "*.dart" -type f -exec sed -i -E \
-              's/file\.bytes[[:space:]]*\?\?[[:space:]]*await[[:space:]]+File\(file\.path!\)\.readAsBytes\(\)/await File(file.path!).readAsBytes()/g' {} \;
-
-            # Pattern C: f.bytes ?? (f.path == null ? null : await File(f.path!).readAsBytes())
-            find lib -name "*.dart" -type f -exec sed -i -E \
-              's/f\.bytes[[:space:]]*\?\?[[:space:]]*\(f\.path[[:space:]]*==[[:space:]]*null[[:space:]]*\?[[:space:]]*null[[:space:]]*:[[:space:]]*await[[:space:]]+File\(f\.path!\)\.readAsBytes\(\)\)/await File(f.path!).readAsBytes()/g' {} \;
-
-            # Pattern D: f.bytes ?? await File(f.path!).readAsBytes()
-            find lib -name "*.dart" -type f -exec sed -i -E \
-              's/f\.bytes[[:space:]]*\?\?[[:space:]]*await[[:space:]]+File\(f\.path!\)\.readAsBytes\(\)/await File(f.path!).readAsBytes()/g' {} \;
-
-            # Pattern E: picked.first.bytes ?? ...
-            find lib -name "*.dart" -type f -exec sed -i -E \
-              's/picked\.first\.bytes[[:space:]]*\?\?[[:space:]]*\(picked\.first\.path[[:space:]]*==[[:space:]]*null[[:space:]]*\?[[:space:]]*null[[:space:]]*:[[:space:]]*await[[:space:]]+File\(picked\.first\.path!\)\.readAsBytes\(\)\)/await File(picked.first.path!).readAsBytes()/g' {} \;
-
-            AFTER=$(grep -rnE "\b(file|f|picked\.first)\.bytes\s*\?\?" lib/ 2>/dev/null | grep -v "readAsBytes" | wc -l)
-            echo "   📊 After : $AFTER file.bytes usages"
-            [ "$AFTER" -lt "$BEFORE" ] && PATCH_APPLIED=$((PATCH_APPLIED + 1))
-          else
-            echo "   ✅ Nothing to patch"
-          fi
-          PATCH_TOTAL=$((PATCH_TOTAL + 1))
-          echo ""
-
           echo "╔══════════════════════════════════════════════════════════════════════╗"
           echo "║  📊 PATCH SUMMARY: $PATCH_APPLIED / $PATCH_TOTAL categories"
           echo "╚══════════════════════════════════════════════════════════════════════╝"
@@ -439,9 +399,6 @@ jobs:
 
           FP_PLATFORM=$(grep -rn "FilePicker\.platform" lib/ 2>/dev/null | wc -l)
           [ "$FP_PLATFORM" -gt 0 ] && { echo "❌ $FP_PLATFORM 'FilePicker.platform' occurrences remain!"; ISSUES=$((ISSUES + 1)); } || echo "✅ No 'FilePicker.platform' found"
-
-          FILE_BYTES=$(grep -rnE "\b(file|f|picked\.first)\.bytes\s*\?\?" lib/ 2>/dev/null | grep -v "readAsBytes" | wc -l)
-          [ "$FILE_BYTES" -gt 0 ] && { echo "❌ $FILE_BYTES 'file.bytes ??' occurrences remain!"; ISSUES=$((ISSUES + 1)); } || echo "✅ No 'file.bytes' pattern found"
 
           echo ""
           if [ "$ISSUES" -gt 0 ]; then
@@ -593,7 +550,7 @@ jobs:
           echo "✅ Native Android build successful"
 
       # ═══════════════════════════════════════════════════════════
-      # AI ERROR ANALYZER (Claude 3 Haiku)
+      # 🤖 AI ERROR ANALYZER (Claude 3 Haiku)
       # ═══════════════════════════════════════════════════════════
       - name: 🤖 AI Error Analyzer (Claude 3 Haiku)
         if: failure()
@@ -605,11 +562,13 @@ jobs:
           echo "╚══════════════════════════════════════════════════════════════════════╝"
           echo ""
 
+          # Check build log
           if [ ! -f "project/build_output.log" ]; then
             echo "⚠️  No build log to analyze, skipping AI"
             exit 0
           fi
 
+          # Extract error context
           echo "📊 Extracting error context..."
           ERROR_FILE="/tmp/ai_error_input.txt"
           {
@@ -633,6 +592,7 @@ jobs:
           ERROR_TEXT=$(cat "$ERROR_FILE" | head -c 2000)
           echo "✅ Extracted $(echo -n "$ERROR_TEXT" | wc -c) chars of error context"
 
+          # Build JSON payload safely with jq
           PAYLOAD=$(jq -n --arg text "Sebuah project Flutter gagal build APK dengan error berikut:
 
 $ERROR_TEXT
@@ -650,6 +610,7 @@ Jawab dalam bahasa Indonesia, singkat dan fokus ke solusi praktis." '{text: $tex
           echo "   Endpoint: https://api-faa.my.id/faa/claude-ai"
           echo ""
 
+          # Call API with retry
           RESPONSE=""
           for attempt in 1 2 3; do
             echo "  Attempt $attempt/3..."
@@ -675,6 +636,7 @@ Jawab dalam bahasa Indonesia, singkat dan fokus ke solusi praktis." '{text: $tex
             exit 0
           fi
 
+          # Parse response
           AI_TEXT=""
           if command -v jq >/dev/null 2>&1; then
             AI_TEXT=$(echo "$RESPONSE" | jq -r '.response // .message // .result // .data // .text // empty' 2>/dev/null || echo "")
@@ -683,6 +645,7 @@ Jawab dalam bahasa Indonesia, singkat dan fokus ke solusi praktis." '{text: $tex
             AI_TEXT="$RESPONSE"
           fi
 
+          # Print formatted result
           echo ""
           echo "╔══════════════════════════════════════════════════════════════════════╗"
           echo "║  🤖 AI ANALYSIS (Claude 3 Haiku)                                     ║"
@@ -696,6 +659,7 @@ Jawab dalam bahasa Indonesia, singkat dan fokus ke solusi praktis." '{text: $tex
           echo "    Test fix di lokal sebelum apply ke production."
           echo ""
 
+          # Save to file for artifact
           {
             echo "═══════════════════════════════════════════════════════════════════"
             echo "AI ERROR ANALYSIS - Claude 3 Haiku"
@@ -710,6 +674,7 @@ Jawab dalam bahasa Indonesia, singkat dan fokus ke solusi praktis." '{text: $tex
             echo "$AI_TEXT"
           } > /tmp/ai_analysis.txt
 
+          # Save to GitHub summary
           {
             echo ""
             echo "---"
@@ -838,13 +803,11 @@ Jawab dalam bahasa Indonesia, singkat dan fokus ke solusi praktis." '{text: $tex
             echo "| ⏱️ Duration | \`${MINUTES}m ${SECONDS}s\` |" >> $GITHUB_STEP_SUMMARY
             echo "| 🎯 Build Type | \`${{ github.event.inputs.build_type }}\` |" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "## 🔧 Auto-Patches Applied (6 categories)" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ file_picker v13 (platform, allowMultiple, withData)" >> $GITHUB_STEP_SUMMARY
+            echo "## 🔧 Auto-Patches Applied" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ file_picker v13 (allowMultiple, withData, platform)" >> $GITHUB_STEP_SUMMARY
             echo "- ✅ firebase_database v12 (MutableData cast)" >> $GITHUB_STEP_SUMMARY
             echo "- ✅ font_awesome_flutter v11 (Icon → FaIcon)" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ result access (.files.X → direct)" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ pubspec upgrades (font_awesome v11)" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ file_picker v13 (file.bytes → File(path).readAsBytes)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ result access (files.X → direct)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "## 📥 Download" >> $GITHUB_STEP_SUMMARY
             echo "Scroll down → **Artifacts** → \`apk-build-output\`" >> $GITHUB_STEP_SUMMARY
@@ -861,4 +824,6 @@ Jawab dalam bahasa Indonesia, singkat dan fokus ke solusi praktis." '{text: $tex
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "## 📥 Download Logs" >> $GITHUB_STEP_SUMMARY
             echo "Scroll down → **Artifacts** → \`build-failure-log\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "_AI analysis sudah ada di tab Summary di atas (scroll ke bawah)_" >> $GITHUB_STEP_SUMMARY
           fi
