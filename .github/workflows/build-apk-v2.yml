@@ -1,0 +1,437 @@
+name: Build APK Pro
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_type:
+        description: 'Source type'
+        required: true
+        default: 'zip_url'
+      source_url:
+        description: 'Source URL'
+        required: true
+        default: ''
+      branch:
+        description: 'Branch'
+        required: false
+        default: 'main'
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'release'
+      chat_id:
+        description: 'Telegram chat ID'
+        required: false
+        default: ''
+      status_message_id:
+        description: 'Status message ID'
+        required: false
+        default: ''
+      flutter_version:
+        description: 'Flutter version'
+        required: false
+        default: 'stable'
+      release_tag:
+        description: 'Release tag'
+        required: false
+        default: ''
+
+concurrency:
+  group: apk-build-${{ github.event.inputs.chat_id }}-${{ github.event.inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Build Info
+        run: |
+          echo "=== WEB2APK PRO BUILDER ==="
+          echo "Source Type: ${{ github.event.inputs.source_type }}"
+          echo "Source URL: ${{ github.event.inputs.source_url }}"
+          echo "Branch: ${{ github.event.inputs.branch }}"
+          echo "Build Type: ${{ github.event.inputs.build_type }}"
+          echo "Flutter: ${{ github.event.inputs.flutter_version }}"
+          echo "Chat ID: ${{ github.event.inputs.chat_id }}"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Started: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "START_TIME_EPOCH=$(date +%s)" >> $GITHUB_ENV
+
+      - name: Download and Extract
+        run: |
+          mkdir -p project
+          cd project
+          SOURCE_TYPE="${{ github.event.inputs.source_type }}"
+          SOURCE_URL="${{ github.event.inputs.source_url }}"
+
+          if [ "$SOURCE_TYPE" = "zip_url" ]; then
+            echo "Downloading ZIP: $SOURCE_URL"
+            curl -L -s -S --connect-timeout 30 --retry 3 \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "$SOURCE_URL" -o project.zip
+
+            FILE_HEAD=$(head -c 15 project.zip || echo "")
+            if echo "$FILE_HEAD" | grep -qiE "<!doctype|<html|<error"; then
+              echo "ERROR: Downloaded content is not a ZIP file"
+              head -n 20 project.zip
+              exit 1
+            fi
+
+            echo "Extracting..."
+            unzip -q project.zip 2>/dev/null || 7z x project.zip -y 2>/dev/null || tar -xf project.zip 2>/dev/null || true
+            rm -f project.zip
+
+            SUBDIRS=(*/)
+            if [ ${#SUBDIRS[@]} -eq 1 ] && [ -d "${SUBDIRS[0]}" ] && [ ! -f "pubspec.yaml" ] && [ ! -f "build.gradle" ] && [ ! -f "build.gradle.kts" ]; then
+              echo "Flattening: ${SUBDIRS[0]}"
+              mv ${SUBDIRS[0]}* . 2>/dev/null || true
+              mv ${SUBDIRS[0]}.* . 2>/dev/null || true
+              rmdir "${SUBDIRS[0]}" 2>/dev/null || true
+            fi
+          else
+            git clone --depth 1 -b ${{ github.event.inputs.branch }} "$SOURCE_URL" .
+          fi
+
+          echo "Extracted"
+          ls -la | head -15
+
+      - name: Detect Framework
+        working-directory: project
+        run: |
+          if [ -f "pubspec.yaml" ]; then
+            echo "FRAMEWORK=flutter" >> $GITHUB_ENV
+            echo "Framework: FLUTTER"
+          elif [ -f "settings.gradle" ] || [ -f "settings.gradle.kts" ] || [ -f "build.gradle" ] || [ -f "build.gradle.kts" ] || [ -d "app" ]; then
+            echo "FRAMEWORK=native-android" >> $GITHUB_ENV
+            echo "Framework: NATIVE ANDROID"
+          else
+            echo "FRAMEWORK=unknown" >> $GITHUB_ENV
+            exit 1
+          fi
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: |
+            17
+            11
+
+      - name: Setup Android SDK
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools" > /dev/null 2>&1 || true
+
+      - name: Pre-Build Patching
+        working-directory: project
+        run: |
+          if [ -d "android" ]; then
+            echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          fi
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+          GRADLE_PROP="android/gradle.properties"
+          if [ ! -d "android" ]; then
+            GRADLE_PROP="gradle.properties"
+          fi
+
+          touch "$GRADLE_PROP"
+          grep -q "org.gradle.jvmargs" "$GRADLE_PROP" || echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8" >> "$GRADLE_PROP"
+          grep -q "android.useAndroidX" "$GRADLE_PROP" || echo "android.useAndroidX=true" >> "$GRADLE_PROP"
+          grep -q "android.enableJetifier" "$GRADLE_PROP" || echo "android.enableJetifier=true" >> "$GRADLE_PROP"
+          grep -q "android.newDsl" "$GRADLE_PROP" || echo "android.newDsl=false" >> "$GRADLE_PROP"
+
+          [ -f "./gradlew" ] && chmod +x ./gradlew
+          [ -f "android/gradlew" ] && chmod +x android/gradlew
+
+      - name: Setup Flutter
+        if: env.FRAMEWORK == 'flutter'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ github.event.inputs.flutter_version || 'stable' }}
+          cache: true
+
+      - name: Auto-Patch
+        if: env.FRAMEWORK == 'flutter'
+        working-directory: project
+        run: |
+          if [ ! -d "lib" ]; then
+            echo "No lib folder, skipping"
+            exit 0
+          fi
+
+          find lib -name "*.dart" -type f -exec sed -i -E \
+            -e 's/FilePicker\.platform/FilePicker/g' \
+            -e '/^[[:space:]]*allowMultiple[[:space:]]*:/d' \
+            -e '/^[[:space:]]*withData[[:space:]]*:/d' \
+            -e '/^[[:space:]]*withReadStream[[:space:]]*:/d' \
+            -e '/^[[:space:]]*allowCompression[[:space:]]*:/d' \
+            -e '/^[[:space:]]*compressionQuality[[:space:]]*:/d' \
+            {} \;
+
+          find lib -name "*.dart" -type f -exec sed -i -E \
+            's/\bmutableData\.value/(mutableData as MutableData).value/g' {} \;
+          for f in $(grep -rl "MutableData" lib/ 2>/dev/null); do
+            grep -q "import 'package:firebase_database/firebase_database.dart'" "$f" || \
+              sed -i "1i import 'package:firebase_database/firebase_database.dart';" "$f"
+          done
+
+          find lib -name "*.dart" -type f -exec sed -i -E \
+            's/(\bconst\s+)?Icon\(FontAwesomeIcons\./\1FaIcon(FontAwesomeIcons./g' {} \;
+          for f in $(grep -rl "FontAwesomeIcons" lib/ 2>/dev/null); do
+            sed -i -E 's/\bIconData\?/FaIconData?/g; s/\bIconData\b/FaIconData/g' "$f"
+          done
+
+          find lib -name "*.dart" -type f -exec sed -i -E \
+            -e 's/picked!?\.files\.first/picked!.first/g' \
+            -e 's/picked!?\.files\.single/picked!.first/g' \
+            -e 's/picked!?\.files\.isEmpty/picked!.isEmpty/g' \
+            {} \;
+
+          find lib -name "*.dart" -type f -exec sed -i -E \
+            's/file\.bytes[[:space:]]*\?\?[[:space:]]*\(file\.path[[:space:]]*==[[:space:]]*null[[:space:]]*\?[[:space:]]*null[[:space:]]*:[[:space:]]*await[[:space:]]+File\(file\.path!\)\.readAsBytes\(\)\)/await File(file.path!).readAsBytes()/g' {} \;
+          find lib -name "*.dart" -type f -exec sed -i -E \
+            's/file\.bytes[[:space:]]*\?\?[[:space:]]*await[[:space:]]+File\(file\.path!\)\.readAsBytes\(\)/await File(file.path!).readAsBytes()/g' {} \;
+
+          if [ -f "pubspec.yaml" ]; then
+            grep -qE "font_awesome_flutter:" pubspec.yaml && \
+              sed -i -E 's/font_awesome_flutter:[[:space:]]*.*/font_awesome_flutter: ^11.0.0/g' pubspec.yaml
+          fi
+
+          echo "Auto-patch done"
+
+      - name: Pre-Fix Gradle
+        if: env.FRAMEWORK == 'flutter'
+        working-directory: project
+        run: |
+          WRAPPER="android/gradle/wrapper/gradle-wrapper.properties"
+          if [ -f "$WRAPPER" ]; then
+            sed -i 's|gradle-[0-9.]*-all.zip|gradle-8.14-all.zip|g' "$WRAPPER"
+            sed -i 's|gradle-[0-9.]*-bin.zip|gradle-8.14-bin.zip|g' "$WRAPPER"
+          else
+            mkdir -p android/gradle/wrapper
+            printf 'distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists\ndistributionUrl=https\\://services.gradle.org/distributions/gradle-8.14-bin.zip\nnetworkTimeout=10000\nvalidateDistributionUrl=true\n' > "$WRAPPER"
+          fi
+
+          APP_KTS="android/app/build.gradle.kts"
+          if [ -f "$APP_KTS" ]; then
+            sed -i 's/compileSdk *= *[0-9]*/compileSdk = 36/g' "$APP_KTS" || true
+            sed -i 's/targetSdk *= *[0-9]*/targetSdk = 36/g' "$APP_KTS" || true
+            sed -i 's/minSdk *= *[0-9]*/minSdk = 21/g' "$APP_KTS" || true
+          fi
+
+          APP_GRADLE="android/app/build.gradle"
+          if [ -f "$APP_GRADLE" ]; then
+            sed -i 's/compileSdkVersion .*/compileSdkVersion 36/g' "$APP_GRADLE" || true
+            sed -i 's/targetSdkVersion .*/targetSdkVersion 36/g' "$APP_GRADLE" || true
+            sed -i 's/minSdkVersion .*/minSdkVersion 21/g' "$APP_GRADLE" || true
+          fi
+
+          rm -rf build android/build android/app/build android/.gradle .gradle pubspec.lock .dart_tool || true
+
+      - name: Build Flutter APK
+        if: env.FRAMEWORK == 'flutter'
+        working-directory: project
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+
+          flutter clean || true
+          flutter pub get 2>&1 | tee pubget.log
+
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            rm -f pubspec.lock
+            flutter pub cache repair || true
+            flutter pub get 2>&1 | tee pubget_retry.log
+          fi
+
+          BUILD_FLAG="--release"
+          [ "${{ github.event.inputs.build_type }}" = "debug" ] && BUILD_FLAG="--debug"
+
+          set +e
+          flutter build apk $BUILD_FLAG --no-tree-shake-icons --android-skip-build-dependency-validation 2>&1 | tee build_output.log
+          BUILD_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          echo "Build exit: $BUILD_EXIT"
+
+          if [ $BUILD_EXIT -ne 0 ]; then
+            tail -80 build_output.log
+            exit 1
+          fi
+
+      - name: Build Native Android APK
+        if: env.FRAMEWORK == 'native-android'
+        working-directory: project
+        run: |
+          if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
+            GRADLE_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties || echo "")
+            if echo "$GRADLE_URL" | grep -qE "gradle-([456]\.|7\.[0-2])"; then
+              export JAVA_HOME="$JAVA_HOME_11_X64"
+            else
+              export JAVA_HOME="$JAVA_HOME_17_X64"
+            fi
+          else
+            export JAVA_HOME="$JAVA_HOME_17_X64"
+          fi
+          export PATH="$JAVA_HOME/bin:$PATH"
+
+          [ ! -f "./gradlew" ] && { gradle wrapper || true; chmod +x ./gradlew || true; }
+
+          BUILD_CMD="./gradlew assembleRelease --no-daemon --stacktrace"
+          [ "${{ github.event.inputs.build_type }}" = "debug" ] && BUILD_CMD="./gradlew assembleDebug --no-daemon --stacktrace"
+
+          set +e
+          $BUILD_CMD 2>&1 | tee build_output.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          set -e
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            cat build_output.log
+            exit 1
+          fi
+
+      - name: AI Error Analyzer
+        if: failure()
+        run: |
+          if [ ! -f "project/build_output.log" ]; then
+            exit 0
+          fi
+
+          ERROR_TEXT=$(grep -E "Error:|FAILURE|Exception|Could not|BUILD FAILED" project/build_output.log | head -20)
+          ERROR_TAIL=$(tail -15 project/build_output.log)
+          ERROR_FULL="$ERROR_TEXT
+
+$ERROR_TAIL"
+          ERROR_FULL=$(echo "$ERROR_FULL" | head -c 1800)
+
+          PAYLOAD=$(jq -n --arg text "Flutter build failed:
+
+$ERROR_FULL
+
+Analysis:
+1. AKAR MASALAH (1 sentence)
+2. SOLUSI (3-5 points)
+3. PENCEGAHAN (1 sentence)
+
+Bahasa Indonesia, singkat." '{text: $text}')
+
+          RESPONSE=""
+          for i in 1 2 3; do
+            RESPONSE=$(curl -s --max-time 60 -X POST "https://api-faa.my.id/faa/claude-ai" \
+              -H "Content-Type: application/json" -d "$PAYLOAD" 2>&1) || true
+            if [ -n "$RESPONSE" ] && [ "$RESPONSE" != "null" ]; then
+              break
+            fi
+            sleep 3
+          done
+
+          if [ -z "$RESPONSE" ]; then
+            echo "AI unavailable"
+            exit 0
+          fi
+
+          AI_TEXT=$(echo "$RESPONSE" | jq -r '.response // .message // .result // .text // empty' 2>/dev/null || echo "$RESPONSE")
+
+          echo "=== AI ANALYSIS ==="
+          echo "$AI_TEXT"
+
+          {
+            echo "## AI Error Analysis"
+            echo ""
+            echo "$AI_TEXT"
+          } >> $GITHUB_STEP_SUMMARY
+
+          echo "$AI_TEXT" > /tmp/ai_analysis.txt
+
+      - name: Upload Failure Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-failure-log
+          path: |
+            project/build_output.log
+            project/pubget.log
+            /tmp/ai_analysis.txt
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Find APK
+        if: success()
+        id: find_apk
+        run: |
+          APK_FILE=$(find project -type f -name "*.apk" | grep -v "androidTest" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "APK not found"
+            exit 1
+          fi
+          APK_FILE=$(echo "$APK_FILE" | sed 's|^\./||')
+          echo "APK_PATH=$APK_FILE" >> $GITHUB_ENV
+          echo "APK_NAME=$(basename $APK_FILE)" >> $GITHUB_ENV
+          echo "APK_SIZE=$(du -h $APK_FILE | cut -f1)" >> $GITHUB_ENV
+          echo "APK_SHA=$(sha256sum $APK_FILE | cut -d ' ' -f1)" >> $GITHUB_ENV
+          echo "Found: $APK_FILE"
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-build-output
+          path: ${{ env.APK_PATH }}
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Telegram Notification
+        if: always()
+        run: |
+          CHAT_ID="${{ github.event.inputs.chat_id }}"
+          BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}"
+
+          if [ -z "$CHAT_ID" ] || [ -z "$BOT_TOKEN" ]; then
+            exit 0
+          fi
+
+          if [ "${{ job.status }}" = "success" ]; then
+            TEXT="BUILD SUCCESS%0AFile: ${{ env.APK_NAME }}%0ASize: ${{ env.APK_SIZE }}"
+          else
+            TEXT="BUILD FAILED%0ACek: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+
+          curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
+            -d "chat_id=$CHAT_ID" \
+            -d "text=$TEXT" || true
+
+      - name: Final Summary
+        if: always()
+        run: |
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME_EPOCH))
+          MIN=$((DURATION / 60))
+          SEC=$((DURATION % 60))
+
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "SUCCESS - ${{ env.APK_NAME }} - ${{ env.APK_SIZE }} - ${MIN}m ${SEC}s"
+            {
+              echo "# Build Successful"
+              echo ""
+              echo "| Field | Value |"
+              echo "|-------|-------|"
+              echo "| File | ${{ env.APK_NAME }} |"
+              echo "| Size | ${{ env.APK_SIZE }} |"
+              echo "| SHA-256 | ${{ env.APK_SHA }} |"
+              echo "| Duration | ${MIN}m ${SEC}s |"
+            } >> $GITHUB_STEP_SUMMARY
+          else
+            echo "FAILED - ${MIN}m ${SEC}s"
+            {
+              echo "# Build Failed"
+              echo ""
+              echo "Duration: ${MIN}m ${SEC}s"
+              echo ""
+              echo "Check artifacts: build-failure-log"
+            } >> $GITHUB_STEP_SUMMARY
+          fi
