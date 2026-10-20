@@ -434,4 +434,4 @@ Bahasa Indonesia, singkat." '{text: $text}')
               echo ""
               echo "Check artifacts: build-failure-log"
             } >> $GITHUB_STEP_SUMMARY
-          fi
+         fi
